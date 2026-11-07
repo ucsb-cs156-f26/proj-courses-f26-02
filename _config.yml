@@ -23,4 +23,4 @@ repo_name: "TBD"
 repo: ucsb-cs156-f26/proj-courses-f26-02
 owner: ucsb-cs156-f26
 repo_name: proj-courses-f26-02
-pull_requests: []
+pull_requests: [{"author":{"id":"U_kgDODhAzXg","is_bot":false,"login":"zsjkwon","name":"Zach"},"headRefName":"zk-name-len-validation","number":17,"title":"zk - updated schedule form to limit 25","url":"https://github.com/ucsb-cs156-f26/proj-courses-f26-02/pull/17"}]
