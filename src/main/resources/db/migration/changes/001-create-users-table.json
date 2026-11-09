@@ -21,7 +21,7 @@
                     "constraints": { "nullable": false, "primaryKey": true }
                   }
                 },
-                { "column": { "name": "email", "type": "VARCHAR(255)" } },
+                { "column": { "name": "email", "type": "VARCHAR(255)", "constraints": { "unique": true }} },
                 { "column": { "name": "google_sub", "type": "VARCHAR(255)" } },
                 { "column": { "name": "picture_url", "type": "VARCHAR(255)" } },
                 { "column": { "name": "full_name", "type": "VARCHAR(255)" } },
