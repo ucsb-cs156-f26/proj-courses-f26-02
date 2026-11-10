@@ -28,7 +28,8 @@ const EnrollmentHistoryGraph = ({
       ...point,
       dateCreated: formatDateCreated(point.dateCreated),
     }));
-  const { chartData, series } = createEnrollmentHistoryChartData(dailyDisplayData);
+  const { chartData, series } =
+    createEnrollmentHistoryChartData(dailyDisplayData);
 
   return (
     <div data-testid="enrollment-history-graph">
