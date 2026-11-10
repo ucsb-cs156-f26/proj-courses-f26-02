@@ -3,6 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { enrollmentDataPointFixtures } from "fixtures/enrollmentDataPointFixtures";
 import EnrollmentHistoryGraph from "main/components/EnrollmentHistory/EnrollmentHistoryGraph";
 import {
+  calculateTotalEnrollmentHistory,
   createEnrollmentHistoryChartData,
   formatDateCreated,
   formatEnrollmentTooltip,
@@ -46,6 +47,9 @@ describe("EnrollmentHistoryGraph tests", () => {
 
     expect(getEnrollmentSeriesKey(dataPoint)).toBe("07609-0100");
     expect(getEnrollmentSeriesLabel(dataPoint)).toBe("07609 - Section 0100");
+    const [total] = calculateTotalEnrollmentHistory([dataPoint]);
+    expect(getEnrollmentSeriesKey(total)).toBe("Total-All");
+    expect(getEnrollmentSeriesLabel(total)).toBe("Total - Section All");
   });
 
   test("formats chart labels and tooltip values", () => {
@@ -54,9 +58,15 @@ describe("EnrollmentHistoryGraph tests", () => {
       "Enrollment: 32",
       "07609 - Section 0100",
     ]);
+    expect(formatEnrollmentTooltip(41, "Total - Section All")).toEqual([
+      "Enrollment: 41",
+      "Total - Section All",
+    ]);
   });
 
   test("creates empty chart data when called with no argument", () => {
+    expect(calculateTotalEnrollmentHistory()).toEqual([]);
+    expect(calculateTotalEnrollmentHistory([])).toEqual([]);
     const expectedEmptyChartData = {
       chartData: [],
       series: [],
@@ -77,8 +87,9 @@ describe("EnrollmentHistoryGraph tests", () => {
       { dataKey: "series0", name: "07609 - Section 0100" },
       { dataKey: "series1", name: "07617 - Section 0101" },
       { dataKey: "series2", name: "07625 - Section 0102" },
+      { dataKey: "series3", name: "Total - Section All" },
     ]);
-    expect(chartData).toEqual([
+    expect(chartData.filter((point) => point.series0 !== undefined)).toEqual([
       {
         dateCreated: "2026-04-13T08:15:00.000000",
         series0: 41,
@@ -92,6 +103,20 @@ describe("EnrollmentHistoryGraph tests", () => {
         series2: 27,
       },
     ]);
+
+    const dataWithTotals = createEnrollmentHistoryChartData(
+      enrollmentDataPointFixtures.cmpsc130aMultipleSectionsOverTime,
+    );
+    const totalSeries = dataWithTotals.series.find(
+      (line) => line.name === "Total - Section All",
+    );
+    expect(totalSeries).toBeDefined();
+    expect(dataWithTotals.series).toHaveLength(4);
+    expect(
+      dataWithTotals.chartData
+        .filter((point) => point[totalSeries.dataKey] !== undefined)
+        .map((point) => point[totalSeries.dataKey]),
+    ).toEqual([41, 48]);
   });
 
   test("sorts chart data chronologically by date created", () => {
@@ -130,24 +155,106 @@ describe("EnrollmentHistoryGraph tests", () => {
     );
 
     expect(
-      chartData.map((dataPoint) => formatDateCreated(dataPoint.dateCreated)),
+      chartData
+        .filter((point) => point.series0 !== undefined)
+        .map((dataPoint) => formatDateCreated(dataPoint.dateCreated)),
     ).toEqual(["2026-05-01", "2026-05-02", "2026-05-03"]);
-    expect(chartData.map((dataPoint) => dataPoint.series0)).toEqual([
-      10, 20, 30,
-    ]);
+    expect(
+      chartData
+        .filter((point) => point.series0 !== undefined)
+        .map((dataPoint) => dataPoint.series0),
+    ).toEqual([10, 20, 30]);
+
+    const dataWithTotals = createEnrollmentHistoryChartData(
+      unsortedEnrollmentData,
+    );
+    const totalSeries = dataWithTotals.series.find(
+      (line) => line.name === "Total - Section All",
+    );
+    expect(totalSeries).toBeDefined();
+    expect(dataWithTotals.series).toHaveLength(2);
+    expect(
+      dataWithTotals.chartData
+        .filter((point) => point[totalSeries.dataKey] !== undefined)
+        .map((point) => point[totalSeries.dataKey]),
+    ).toEqual([10, 20, 30]);
   });
 
-  test("creates one series across multiple quarters", () => {
+  test("creates section and total series across multiple quarters", () => {
     const { chartData, series } = createEnrollmentHistoryChartData(
       enrollmentDataPointFixtures.cmpsc130aMultipleQuarters,
     );
 
     expect(series).toEqual([
       { dataKey: "series0", name: "07609 - Section 0100" },
+      { dataKey: "series1", name: "Total - Section All" },
     ]);
-    expect(chartData.map((dataPoint) => dataPoint.series0)).toEqual([
-      62, 54, 48,
+    expect(
+      chartData
+        .filter((point) => point.series0 !== undefined)
+        .map((dataPoint) => dataPoint.series0),
+    ).toEqual([62, 54, 48]);
+
+    const dataWithTotals = createEnrollmentHistoryChartData(
+      enrollmentDataPointFixtures.cmpsc130aMultipleQuarters,
+    );
+    const totalSeries = dataWithTotals.series.find(
+      (line) => line.name === "Total - Section All",
+    );
+    expect(totalSeries).toBeDefined();
+    expect(dataWithTotals.series).toHaveLength(2);
+    expect(
+      dataWithTotals.chartData
+        .filter((point) => point[totalSeries.dataKey] !== undefined)
+        .map((point) => point[totalSeries.dataKey]),
+    ).toEqual([62, 54, 48]);
+  });
+
+  test("calculates total values for multiple sections over time", () => {
+    const totals = calculateTotalEnrollmentHistory(
+      enrollmentDataPointFixtures.cmpsc130aMultipleSectionsOverTime,
+    );
+
+    // Only lecture 0100 contributes; discussions 0101 and 0102 are excluded.
+    expect(totals).toEqual([
+      {
+        dateCreated: "2026-04-13",
+        enrollCd: "Total",
+        section: "All",
+        enrollment: 41,
+      },
+      {
+        dateCreated: "2026-05-26",
+        enrollCd: "Total",
+        section: "All",
+        enrollment: 48,
+      },
     ]);
+  });
+
+  test("totals multiple lectures on the same day using their latest snapshots", () => {
+    const data = enrollmentDataPointFixtures.cmpsc130aMultipleLecturesSameDay;
+
+    // Use the latest 0100 snapshot (48), add lecture 0200 (30), and skip discussion 0101.
+    expect(calculateTotalEnrollmentHistory(data)).toEqual([
+      {
+        dateCreated: "2026-04-13",
+        enrollCd: "Total",
+        section: "All",
+        enrollment: 78,
+      },
+    ]);
+
+    const { chartData, series } = createEnrollmentHistoryChartData(data);
+    const totalSeries = series.find(
+      (line) => line.name === "Total - Section All",
+    );
+    expect(totalSeries).toBeDefined();
+    expect(
+      chartData
+        .filter((point) => point[totalSeries.dataKey] !== undefined)
+        .map((point) => point[totalSeries.dataKey]),
+    ).toEqual([78]);
   });
 
   test("renders with the default title and no data", () => {
@@ -158,13 +265,17 @@ describe("EnrollmentHistoryGraph tests", () => {
     expect(
       screen.queryByText("undefined - Section undefined"),
     ).not.toBeInTheDocument();
+    expect(screen.queryByText("Total - Section All")).not.toBeInTheDocument();
     expect(container.querySelectorAll(".recharts-line")).toHaveLength(0);
   });
 
   test("renders multiple section lines and legend labels", async () => {
-    render(
+    const sections =
+      enrollmentDataPointFixtures.cmpsc130aMultipleSectionsOverTime;
+
+    const { container } = render(
       <EnrollmentHistoryGraph
-        data={enrollmentDataPointFixtures.cmpsc130aMultipleSectionsOverTime}
+        data={sections}
         title="CMPSC 130A Section Enrollment Over Time"
       />,
     );
@@ -177,6 +288,23 @@ describe("EnrollmentHistoryGraph tests", () => {
       expect(screen.getByText("07609 - Section 0100")).toBeInTheDocument();
       expect(screen.getByText("07617 - Section 0101")).toBeInTheDocument();
       expect(screen.getByText("07625 - Section 0102")).toBeInTheDocument();
+      expect(screen.getByText("Total - Section All")).toBeInTheDocument();
+      expect(container.querySelectorAll(".recharts-line")).toHaveLength(4);
+      const totalCurve = container.querySelector(
+        '.recharts-line-curve[stroke="#000000"]',
+      );
+      expect(totalCurve).toBeInTheDocument();
+      const sectionCurves = Array.from(
+        container.querySelectorAll(
+          '.recharts-line-curve:not([stroke="#000000"])',
+        ),
+      );
+      expect(sectionCurves).toHaveLength(3);
+      sectionCurves.forEach((curve) => {
+        expect(Number(totalCurve.getAttribute("stroke-width"))).toBeGreaterThan(
+          Number(curve.getAttribute("stroke-width")),
+        );
+      });
     });
   });
 });

@@ -20,7 +20,15 @@ const EnrollmentHistoryGraph = ({
   lineColors = defaultLineColors,
   title = "Enrollment History",
 }) => {
-  const { chartData, series } = createEnrollmentHistoryChartData(data);
+  // Group a copy by day for display, preserving the timestamps in the source data.
+  // Sort first so the latest snapshot wins when a section appears twice in a day.
+  const dailyDisplayData = [...data]
+    .sort((a, b) => a.dateCreated.localeCompare(b.dateCreated))
+    .map((point) => ({
+      ...point,
+      dateCreated: formatDateCreated(point.dateCreated),
+    }));
+  const { chartData, series } = createEnrollmentHistoryChartData(dailyDisplayData);
 
   return (
     <div data-testid="enrollment-history-graph">
@@ -48,8 +56,12 @@ const EnrollmentHistoryGraph = ({
               key={line.dataKey}
               dataKey={line.dataKey}
               name={line.name}
-              stroke={lineColors[index % lineColors.length]}
-              strokeWidth={2}
+              stroke={
+                line.name === "Total - Section All"
+                  ? "#000000"
+                  : lineColors[index % lineColors.length]
+              }
+              strokeWidth={line.name === "Total - Section All" ? 3 : 2}
               dot
               connectNulls
               // Stryker restore all
