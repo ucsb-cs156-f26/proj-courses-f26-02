@@ -1,5 +1,5 @@
 import { vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { enrollmentDataPointFixtures } from "fixtures/enrollmentDataPointFixtures";
 import EnrollmentHistoryGraph from "main/components/EnrollmentHistory/EnrollmentHistoryGraph";
 import {
@@ -148,22 +148,36 @@ describe("EnrollmentHistoryGraph tests", () => {
         enrollment: 20,
         dateCreated: "2026-05-02T08:15:00.000000",
       },
+      {
+        id: 4,
+        yyyyq: "20262",
+        enrollCd: "07609",
+        courseId: "CMPSC   130A -1",
+        section: "0100",
+        enrollment: 15,
+        dateCreated: "2026-05-01T06:00:00.000000",
+      },
     ];
 
     const { chartData } = createEnrollmentHistoryChartData(
       unsortedEnrollmentData,
     );
 
-    expect(
-      chartData
-        .filter((point) => point.series0 !== undefined)
-        .map((dataPoint) => formatDateCreated(dataPoint.dateCreated)),
-    ).toEqual(["2026-05-01", "2026-05-02", "2026-05-03"]);
+    // Check full timestamps, including the order of snapshots on the same day.
+    expect(chartData.map((point) => point.dateCreated)).toEqual([
+      "2026-05-01",
+      "2026-05-01T06:00:00.000000",
+      "2026-05-01T08:15:00.000000",
+      "2026-05-02",
+      "2026-05-02T08:15:00.000000",
+      "2026-05-03",
+      "2026-05-03T08:15:00.000000",
+    ]);
     expect(
       chartData
         .filter((point) => point.series0 !== undefined)
         .map((dataPoint) => dataPoint.series0),
-    ).toEqual([10, 20, 30]);
+    ).toEqual([15, 10, 20, 30]);
 
     const dataWithTotals = createEnrollmentHistoryChartData(
       unsortedEnrollmentData,
@@ -178,6 +192,17 @@ describe("EnrollmentHistoryGraph tests", () => {
         .filter((point) => point[totalSeries.dataKey] !== undefined)
         .map((point) => point[totalSeries.dataKey]),
     ).toEqual([10, 20, 30]);
+
+    expect(
+      calculateTotalEnrollmentHistory(unsortedEnrollmentData).map((point) => ({
+        dateCreated: point.dateCreated,
+        enrollment: point.enrollment,
+      })),
+    ).toEqual([
+      { dateCreated: "2026-05-01", enrollment: 10 },
+      { dateCreated: "2026-05-02", enrollment: 20 },
+      { dateCreated: "2026-05-03", enrollment: 30 },
+    ]);
   });
 
   test("creates section and total series across multiple quarters", () => {
@@ -257,6 +282,54 @@ describe("EnrollmentHistoryGraph tests", () => {
     ).toEqual([78]);
   });
 
+  test("renders the latest daily snapshots even when input timestamps are out of order", () => {
+    const base = enrollmentDataPointFixtures.cmpsc130aLectureOverTime[0];
+    const latest = {
+      ...base,
+      enrollment: 48,
+      dateCreated: "2026-04-13T12:00:00.000000",
+    };
+    const earlier = {
+      ...base,
+      enrollment: 10,
+      dateCreated: "2026-04-13T08:00:00.000000",
+    };
+    const nextDay = {
+      ...base,
+      enrollment: 30,
+      dateCreated: "2026-04-14T08:00:00.000000",
+    };
+    const lastDay = {
+      ...base,
+      enrollment: 70,
+      dateCreated: "2026-04-15T08:00:00.000000",
+    };
+    // Put the older snapshot after the newer one to expose missing sorting.
+    const { container } = render(
+      <EnrollmentHistoryGraph data={[lastDay, latest, earlier, nextDay]} />,
+    );
+
+    // Navigate the rendered chart and check the section and total tooltip values.
+    const chart = screen.getByRole("application");
+    fireEvent.focus(chart);
+    expect(
+      container.querySelector(".recharts-tooltip-label"),
+    ).toHaveTextContent("2026-04-13");
+    expect(screen.getAllByText("Enrollment: 48")).toHaveLength(2);
+    fireEvent.keyDown(chart, { key: "ArrowRight", code: "ArrowRight" });
+    expect(
+      container.querySelector(".recharts-tooltip-label"),
+    ).toHaveTextContent("2026-04-14");
+    expect(screen.getAllByText("Enrollment: 30")).toHaveLength(2);
+    fireEvent.keyDown(chart, { key: "ArrowRight", code: "ArrowRight" });
+    expect(
+      container.querySelector(".recharts-tooltip-label"),
+    ).toHaveTextContent("2026-04-15");
+    expect(screen.getAllByText("Enrollment: 70")).toHaveLength(2);
+
+    expect(container.querySelectorAll(".recharts-line-curve")).toHaveLength(2);
+  });
+
   test("renders with the default title and no data", () => {
     const { container } = render(<EnrollmentHistoryGraph />);
 
@@ -269,7 +342,7 @@ describe("EnrollmentHistoryGraph tests", () => {
     expect(container.querySelectorAll(".recharts-line")).toHaveLength(0);
   });
 
-  test("renders multiple section lines and legend labels", async () => {
+  test("renders multiple section lines and legend labels", () => {
     const sections =
       enrollmentDataPointFixtures.cmpsc130aMultipleSectionsOverTime;
 
@@ -284,27 +357,25 @@ describe("EnrollmentHistoryGraph tests", () => {
       screen.getByText("CMPSC 130A Section Enrollment Over Time"),
     ).toBeInTheDocument();
 
-    await waitFor(() => {
-      expect(screen.getByText("07609 - Section 0100")).toBeInTheDocument();
-      expect(screen.getByText("07617 - Section 0101")).toBeInTheDocument();
-      expect(screen.getByText("07625 - Section 0102")).toBeInTheDocument();
-      expect(screen.getByText("Total - Section All")).toBeInTheDocument();
-      expect(container.querySelectorAll(".recharts-line")).toHaveLength(4);
-      const totalCurve = container.querySelector(
-        '.recharts-line-curve[stroke="#000000"]',
+    expect(screen.getByText("07609 - Section 0100")).toBeInTheDocument();
+    expect(screen.getByText("07617 - Section 0101")).toBeInTheDocument();
+    expect(screen.getByText("07625 - Section 0102")).toBeInTheDocument();
+    expect(screen.getByText("Total - Section All")).toBeInTheDocument();
+    expect(container.querySelectorAll(".recharts-line")).toHaveLength(4);
+    const totalCurve = container.querySelector(
+      '.recharts-line-curve[stroke="#000000"]',
+    );
+    expect(totalCurve).toBeInTheDocument();
+    const sectionCurves = Array.from(
+      container.querySelectorAll(
+        '.recharts-line-curve:not([stroke="#000000"])',
+      ),
+    );
+    expect(sectionCurves).toHaveLength(3);
+    sectionCurves.forEach((curve) => {
+      expect(Number(totalCurve.getAttribute("stroke-width"))).toBeGreaterThan(
+        Number(curve.getAttribute("stroke-width")),
       );
-      expect(totalCurve).toBeInTheDocument();
-      const sectionCurves = Array.from(
-        container.querySelectorAll(
-          '.recharts-line-curve:not([stroke="#000000"])',
-        ),
-      );
-      expect(sectionCurves).toHaveLength(3);
-      sectionCurves.forEach((curve) => {
-        expect(Number(totalCurve.getAttribute("stroke-width"))).toBeGreaterThan(
-          Number(curve.getAttribute("stroke-width")),
-        );
-      });
     });
   });
 });

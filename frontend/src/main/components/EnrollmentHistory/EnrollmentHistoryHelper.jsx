@@ -56,9 +56,7 @@ export const calculateTotalEnrollmentHistory = (data = []) => {
   });
 
   // Return the totals in chronological order for the enrollment history graph.
-  return Array.from(totalsByDate.values()).sort((a, b) =>
-    a.dateCreated.localeCompare(b.dateCreated),
-  );
+  return Array.from(totalsByDate.values());
 };
 
 export const formatEnrollmentTooltip = (value, name) => [
@@ -67,15 +65,12 @@ export const formatEnrollmentTooltip = (value, name) => [
 ];
 
 export const createEnrollmentHistoryChartData = (data = []) => {
-  const sortedData = [...data].sort((a, b) =>
-    a.dateCreated.localeCompare(b.dateCreated),
-  );
   const seriesByKey = new Map();
   const chartDataByDate = new Map();
 
   // Add the lecture-only total here so callers only supply section snapshots.
-  const totals = calculateTotalEnrollmentHistory(sortedData);
-  [...sortedData, ...totals].forEach((dataPoint) => {
+  const totals = calculateTotalEnrollmentHistory(data);
+  [...data, ...totals].forEach((dataPoint) => {
     const seriesKey = getEnrollmentSeriesKey(dataPoint);
     const date = dataPoint.dateCreated;
 
