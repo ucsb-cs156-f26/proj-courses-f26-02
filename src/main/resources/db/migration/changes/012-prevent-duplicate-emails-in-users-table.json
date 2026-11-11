@@ -1,0 +1,19 @@
+{
+  "databaseChangeLog": [
+    {
+      "changeSet": {
+        "id": "012-prevent-duplicate-emails-in-users-table",
+        "author": "timothyhu1",
+        "changes": [
+          {
+            "addUniqueConstraint": {
+              "tableName": "users",
+              "columnNames": "email",
+              "constraintName": "unique_user_email"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
