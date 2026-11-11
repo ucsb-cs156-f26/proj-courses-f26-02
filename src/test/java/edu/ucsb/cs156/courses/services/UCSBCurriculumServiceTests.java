@@ -1,6 +1,9 @@
 package edu.ucsb.cs156.courses.services;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
@@ -20,6 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.autoconfigure.web.client.RestClientTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestTemplate;
 
@@ -37,6 +41,8 @@ public class UCSBCurriculumServiceTests {
   @Mock private RestTemplate restTemplate;
 
   @Autowired private UCSBCurriculumService ucs;
+
+  @MockitoBean private ConvertedSectionUpsertService upsertService;
 
   @Test
   public void test_getJSON_success() throws Exception {
@@ -415,6 +421,39 @@ public class UCSBCurriculumServiceTests {
 
     List<Primary> result = ucs.getPrimaries(subjectArea, quarter, level);
     assertEquals(expectedConvertedPrimaries, result);
+    for (ConvertedSection expectedSection : expectedCoursePage.convertedSections()) {
+      verify(upsertService).upsert(expectedSection);
+    }
+  }
+
+  @Test
+  public void test_getPrimaries_returnsLiveResultsWhenCacheFails() throws Exception {
+    String subjectArea = "MATH";
+    String quarter = "20222";
+    String level = "L";
+    String apiResponse = CoursePageFixtures.COURSE_PAGE_JSON_MATH3B;
+
+    CoursePage expectedPage = new ObjectMapper().readValue(apiResponse, CoursePage.class);
+    List<Primary> expected = expectedPage.getPrimaries();
+
+    String params =
+        String.format(
+            "?quarter=%s&subjectCode=%s&objLevelCode=%s&pageNumber=%d&pageSize=%d&includeClassSections=%s",
+            quarter, subjectArea, level, 1, 100, "true");
+    String expectedURL =
+        (UCSBCurriculumService.CURRICULUM_ENDPOINT + params).replace("{apiHost}", apiHost);
+
+    mockRestServiceServer
+        .expect(requestTo(expectedURL))
+        .andRespond(withSuccess(apiResponse, MediaType.APPLICATION_JSON));
+
+    doThrow(new RuntimeException("Mongo unavailable"))
+        .when(upsertService)
+        .upsert(any(ConvertedSection.class));
+
+    List<Primary> result = ucs.getPrimaries(subjectArea, quarter, level);
+
+    assertEquals(expected, result);
   }
 
   @Test
