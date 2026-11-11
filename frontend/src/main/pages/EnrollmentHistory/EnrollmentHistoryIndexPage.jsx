@@ -57,6 +57,9 @@ export default function EnrollmentHistoryIndexPage() {
                 </Button>
               </Col>
             </Row>
+            <Row>
+               <p>This feature not yet implemented; coming soon!</p>
+            </Row>
           </Container>
         </Form>
       </div>
