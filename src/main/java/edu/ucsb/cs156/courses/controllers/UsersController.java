@@ -3,12 +3,14 @@ package edu.ucsb.cs156.courses.controllers;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.ucsb.cs156.courses.entities.User;
+import edu.ucsb.cs156.courses.errors.EntityNotFoundException;
 import edu.ucsb.cs156.courses.repositories.UserRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort.Direction;
@@ -93,5 +95,59 @@ public class UsersController extends ApiController {
 
     Iterable<User> users = userRepository.findAll(pageRequest);
     return users;
+  }
+
+  public static final int DEFAULT_SEARCH_LIMIT = 10;
+  public static final int MAX_SEARCH_LIMIT = 50;
+
+  @Operation(
+      summary = "Search users by name or email (for type-ahead / autocomplete)",
+      description =
+          "Case-insensitive substring match on fullName, givenName, familyName and email. "
+              + "Users with a field starting with the query are listed first. "
+              + "A blank query returns an empty list.")
+  @PreAuthorize("hasRole('ROLE_ADMIN')")
+  @GetMapping("/search")
+  public List<User> searchUsers(
+      @Parameter(
+              name = "query",
+              description = "text to match against name or email",
+              example = "con",
+              required = true)
+          @RequestParam
+          String query,
+      @Parameter(
+              name = "limit",
+              description = "maximum number of results (1-" + MAX_SEARCH_LIMIT + ")",
+              example = "10")
+          @RequestParam(defaultValue = "" + DEFAULT_SEARCH_LIMIT)
+          int limit) {
+    if (limit < 1 || limit > MAX_SEARCH_LIMIT) {
+      throw new IllegalArgumentException(
+          String.format("limit must be between 1 and %d, but was %d", MAX_SEARCH_LIMIT, limit));
+    }
+    String trimmed = query.trim();
+    if (trimmed.isEmpty()) {
+      return List.of();
+    }
+    String pattern = escapeLikePattern(trimmed.toLowerCase(Locale.ROOT));
+    return userRepository.searchByNameOrEmail(pattern, PageRequest.of(0, limit));
+  }
+
+  @Operation(summary = "Get a single user by id")
+  @PreAuthorize("hasRole('ROLE_ADMIN')")
+  @GetMapping(params = {"id"})
+  public User getUserById(
+      @Parameter(name = "id", description = "id of the user", example = "1", required = true)
+          @RequestParam
+          long id) {
+    return userRepository
+        .findById(id)
+        .orElseThrow(() -> new EntityNotFoundException(User.class, id));
+  }
+
+  /** Escape the LIKE wildcards so user input is matched literally (escape char is backslash). */
+  static String escapeLikePattern(String text) {
+    return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
   }
 }
