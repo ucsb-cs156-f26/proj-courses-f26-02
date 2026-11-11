@@ -4,15 +4,20 @@ import { useBackend } from "main/utils/useBackend";
 
 export default function EnrollmentHistoryIndexPage() {
   const { data: subjects } = useBackend(
+    // Stryker disable next-line all : don't test internal caching of React Query
     ["/api/UCSBSubjects/all"],
-    { method: "GET", url: "/api/UCSBSubjects/all" },
+    {
+      // Stryker disable next-line StringLiteral : GET is the default, so replacing with empty string is an equivalent mutation
+      method: "GET",
+      url: "/api/UCSBSubjects/all",
+    },
     [],
   );
   return (
     <BasicLayout>
       <div className="pt-2">
         <h5>UCSB Course Enrollment History Search</h5>
-        <Form onSubmit={(event) => event.preventDefault()}>
+        <Form>
           <Container>
             <Row>
               <Col md="auto">
@@ -40,7 +45,12 @@ export default function EnrollmentHistoryIndexPage() {
                 </Form.Group>
               </Col>
             </Row>
-            <Row style={{ paddingTop: 10, paddingBottom: 10 }}>
+            <Row
+              style={
+                // Stryker disable next-line ObjectLiteral : padding is a visual styling choice
+                { paddingTop: 10, paddingBottom: 10 }
+              }
+            >
               <Col md="auto">
                 <Button variant="primary" type="button">
                   Submit
