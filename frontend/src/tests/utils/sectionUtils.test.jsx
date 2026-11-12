@@ -160,7 +160,7 @@ describe("section utils tests", () => {
       };
       const view = renderInfoLink(row, "testid");
       expect(view.props.children.props.style.color).toBe("black");
-      expect(view.props.children.props.href).toBe("/coursedetails/20244/30247");
+      expect(view.props.children.props.to).toBe("/coursedetails/20244/30247");
       expect(view.props.children.props["target"]).toBe("_blank");
     });
   });
@@ -172,7 +172,7 @@ describe("section utils tests", () => {
         original: { ...course },
       };
       const view = renderDetailPageLink(row, "testid");
-      expect(view.props.children.props.href).toBe("/coursedetails/20244/30247");
+      expect(view.props.children.props.to).toBe("/coursedetails/20244/30247");
       expect(view.props.children.props["target"]).toBe("_blank");
     });
   });
