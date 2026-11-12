@@ -42,7 +42,7 @@ const matchUsers = (allUsers, text) => {
 };
 
 // Story harness that plays the role of the parent component
-const Harness = ({ allUsers, latencyMs = 0, ...args }) => {
+const Harness = ({ allUsers, latencyMs = 0, maxSuggestions, ...args }) => {
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selected, setSelected] = useState(null);
@@ -70,8 +70,17 @@ const Harness = ({ allUsers, latencyMs = 0, ...args }) => {
     <div style={{ maxWidth: 480, minHeight: 380 }}>
       <UserTypeahead
         {...args}
-        users={users}
+        users={
+          maxSuggestions !== undefined && users.length > maxSuggestions
+            ? []
+            : users
+        }
         isLoading={isLoading}
+        message={
+          maxSuggestions !== undefined && users.length > maxSuggestions
+            ? `More than ${maxSuggestions} matches — keep typing to narrow it down`
+            : undefined
+        }
         onSearchChange={onSearchChange}
         onSelect={setSelected}
       />
@@ -170,4 +179,28 @@ CustomLabelAndPlaceholder.args = {
   controlId: "InstructorTypeahead",
   label: "Instructor",
   placeholder: "Start typing an instructor's name or email",
+};
+
+export const TooManyMatches = Template.bind({});
+TooManyMatches.args = {
+  allUsers: usersFixtures.tenUsers,
+  maxSuggestions: 3,
+};
+TooManyMatches.parameters = {
+  docs: {
+    description: {
+      story:
+        "The parent passes a `message` when there are too many matches to list (here, more than 3). " +
+        'Typing "ucsb" shows the message (6 matches); keep typing, e.g. "fkhan", to narrow it down.',
+    },
+  },
+};
+TooManyMatches.play = async ({ canvasElement }) => {
+  const canvas = within(canvasElement);
+  await userEvent.type(canvas.getByRole("combobox"), "ucsb");
+  await expect(
+    await canvas.findByText(
+      "More than 3 matches — keep typing to narrow it down",
+    ),
+  ).toBeInTheDocument();
 };

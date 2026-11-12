@@ -13,11 +13,16 @@ import {
 // (e.g. from a backend search endpoint).  When a user is picked,
 // onSelect(user) is called; when the selection is cleared,
 // onSelect(null) is called.
+//
+// While a search is pending (debounce not yet elapsed, or isLoading) the
+// menu shows "Searching...".  If `message` is set, it is shown in the menu
+// instead of the suggestions (e.g. "Too many matches, keep typing").
 const UserTypeahead = ({
   users = [],
   onSearchChange,
   onSelect,
   isLoading = false,
+  message,
   debounceMs = 300,
   controlId = "UserTypeahead",
   label = "User",
@@ -26,6 +31,8 @@ const UserTypeahead = ({
   const [query, setQuery] = useState("");
   const [searchText, setSearchText] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
+  // Stryker disable next-line BooleanLiteral : equivalent; menu needs non-empty query, and the first edit sets isPending
+  const [isPending, setIsPending] = useState(false);
   // Stryker disable next-line BooleanLiteral : equivalent; menu needs non-empty query, and every edit sets isOpen
   const [isOpen, setIsOpen] = useState(false);
   // Stryker disable next-line UnaryOperator : equivalent; every edit resets activeIndex before menu can show
@@ -40,17 +47,20 @@ const UserTypeahead = ({
     if (searchText === null) {
       return undefined;
     }
-    const timer = setTimeout(
-      () => onSearchChangeRef.current(searchText),
-      debounceMs,
-    );
+    const timer = setTimeout(() => {
+      setIsPending(false);
+      onSearchChangeRef.current(searchText);
+    }, debounceMs);
     return () => clearTimeout(timer);
   }, [searchText, debounceMs]);
 
   const listboxId = `${controlId}-listbox`;
   const optionId = (i) => `${controlId}-option-${i}`;
   const showMenu = isOpen && !selectedUser && query.trim() !== "";
-  const highlighted = activeIndex < users.length ? activeIndex : -1;
+  const isSearching = isLoading || isPending;
+  // only the suggestions actually on screen can be highlighted or picked
+  const visibleUsers = isSearching || message ? [] : users;
+  const highlighted = activeIndex < visibleUsers.length ? activeIndex : -1;
 
   const select = (user) => {
     setSelectedUser(user);
@@ -69,8 +79,12 @@ const UserTypeahead = ({
 
   const handleChange = (event) => {
     const text = event.target.value;
+    const trimmed = text.trim();
     setQuery(text);
-    setSearchText(text.trim());
+    if (trimmed !== searchText) {
+      setSearchText(trimmed);
+      setIsPending(true);
+    }
     setIsOpen(true);
     setActiveIndex(-1);
     if (selectedUser) {
@@ -83,14 +97,14 @@ const UserTypeahead = ({
     if (event.key === "ArrowDown") {
       event.preventDefault();
       setIsOpen(true);
-      setActiveIndex(Math.min(highlighted + 1, users.length - 1));
+      setActiveIndex(Math.min(highlighted + 1, visibleUsers.length - 1));
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
       setActiveIndex(Math.max(highlighted - 1, 0));
     } else if (event.key === "Enter") {
       event.preventDefault();
       if (showMenu && highlighted >= 0) {
-        select(users[highlighted]);
+        select(visibleUsers[highlighted]);
       }
     } else if (event.key === "Escape") {
       setIsOpen(false);
@@ -99,10 +113,17 @@ const UserTypeahead = ({
   };
 
   const renderMenuContents = () => {
-    if (isLoading) {
+    if (isSearching) {
       return (
         <ListGroup.Item data-testid={`${controlId}-loading`}>
           Searching...
+        </ListGroup.Item>
+      );
+    }
+    if (message) {
+      return (
+        <ListGroup.Item data-testid={`${controlId}-message`}>
+          {message}
         </ListGroup.Item>
       );
     }

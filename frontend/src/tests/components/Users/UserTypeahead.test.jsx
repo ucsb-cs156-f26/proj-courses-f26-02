@@ -17,6 +17,7 @@ describe("UserTypeahead tests", () => {
   beforeEach(() => {
     onSearchChange = vi.fn();
     onSelect = vi.fn();
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
@@ -33,10 +34,17 @@ describe("UserTypeahead tests", () => {
       />,
     );
 
-  const type = (text) =>
+  // type without letting the debounce elapse
+  const typeOnly = (text) =>
     fireEvent.change(screen.getByRole("combobox"), {
       target: { value: text },
     });
+
+  // type and let the default 300ms debounce elapse
+  const type = (text) => {
+    typeOnly(text);
+    act(() => vi.advanceTimersByTime(300));
+  };
 
   const key = (k) =>
     fireEvent.keyDown(screen.getByRole("combobox"), { key: k });
@@ -161,17 +169,15 @@ describe("UserTypeahead tests", () => {
 
   describe("debounced onSearchChange", () => {
     test("is not called on mount", () => {
-      vi.useFakeTimers();
       renderTypeahead();
       act(() => vi.advanceTimersByTime(1000));
       expect(onSearchChange).not.toHaveBeenCalled();
     });
 
     test("is called once with trimmed text after default 300ms", () => {
-      vi.useFakeTimers();
       renderTypeahead();
-      type(" c");
-      type(" co ");
+      typeOnly(" c");
+      typeOnly(" co ");
       act(() => vi.advanceTimersByTime(299));
       expect(onSearchChange).not.toHaveBeenCalled();
       act(() => vi.advanceTimersByTime(1));
@@ -180,9 +186,8 @@ describe("UserTypeahead tests", () => {
     });
 
     test("respects a custom debounceMs", () => {
-      vi.useFakeTimers();
       renderTypeahead({ debounceMs: 50 });
-      type("con");
+      typeOnly("con");
       act(() => vi.advanceTimersByTime(49));
       expect(onSearchChange).not.toHaveBeenCalled();
       act(() => vi.advanceTimersByTime(1));
@@ -190,9 +195,8 @@ describe("UserTypeahead tests", () => {
     });
 
     test("uses the latest onSearchChange prop", () => {
-      vi.useFakeTimers();
       const { rerender } = renderTypeahead();
-      type("con");
+      typeOnly("con");
       const newOnSearchChange = vi.fn();
       rerender(
         <UserTypeahead
@@ -247,7 +251,6 @@ describe("UserTypeahead tests", () => {
     });
 
     test("clear button resets input, selection, and search", () => {
-      vi.useFakeTimers();
       renderTypeahead();
       type("con");
       fireEvent.click(screen.getByTestId("UserTypeahead-option-0"));
@@ -431,6 +434,70 @@ describe("UserTypeahead tests", () => {
       );
       key("Enter");
       expect(onSelect).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("pending search and message", () => {
+    test("shows 'Searching...' until the debounce elapses", () => {
+      renderTypeahead();
+      typeOnly("con");
+      expect(screen.getByTestId("UserTypeahead-loading")).toBeInTheDocument();
+      expect(screen.queryAllByRole("option")).toHaveLength(0);
+      key("ArrowDown");
+      key("Enter");
+      expect(onSelect).not.toHaveBeenCalled();
+      expect(screen.getByRole("combobox")).not.toHaveAttribute(
+        "aria-activedescendant",
+      );
+
+      act(() => vi.advanceTimersByTime(300));
+      expect(screen.queryByTestId("UserTypeahead-loading")).toBeNull();
+      expect(screen.getAllByRole("option")).toHaveLength(3);
+    });
+
+    test("an edit that trims to the same text does not start a new search", () => {
+      renderTypeahead();
+      type("con");
+      expect(onSearchChange).toHaveBeenCalledTimes(1);
+      typeOnly("con ");
+      expect(screen.queryByTestId("UserTypeahead-loading")).toBeNull();
+      expect(screen.getAllByRole("option")).toHaveLength(3);
+      act(() => vi.advanceTimersByTime(1000));
+      expect(onSearchChange).toHaveBeenCalledTimes(1);
+    });
+
+    test("users passed while loading cannot be highlighted or picked", () => {
+      renderTypeahead({ isLoading: true });
+      type("con");
+      key("ArrowDown");
+      key("Enter");
+      expect(onSelect).not.toHaveBeenCalled();
+      expect(screen.getByRole("combobox")).not.toHaveAttribute(
+        "aria-activedescendant",
+      );
+    });
+
+    test("shows message instead of suggestions", () => {
+      renderTypeahead({ message: "Too many matches" });
+      type("con");
+      expect(screen.getByTestId("UserTypeahead-message")).toHaveTextContent(
+        "Too many matches",
+      );
+      expect(screen.queryAllByRole("option")).toHaveLength(0);
+      expect(screen.queryByTestId("UserTypeahead-no-results")).toBeNull();
+      key("ArrowDown");
+      key("Enter");
+      expect(onSelect).not.toHaveBeenCalled();
+      expect(screen.getByRole("combobox")).not.toHaveAttribute(
+        "aria-activedescendant",
+      );
+    });
+
+    test("'Searching...' takes precedence over message", () => {
+      renderTypeahead({ message: "Too many matches", isLoading: true });
+      type("con");
+      expect(screen.getByTestId("UserTypeahead-loading")).toBeInTheDocument();
+      expect(screen.queryByTestId("UserTypeahead-message")).toBeNull();
     });
   });
 });
