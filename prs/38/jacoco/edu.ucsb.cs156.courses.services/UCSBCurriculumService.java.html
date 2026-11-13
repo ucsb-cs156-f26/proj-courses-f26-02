@@ -126,13 +126,13 @@ public class UCSBCurriculumService {
 <span class="fc" id="L126">        totalCourses = coursePage.getTotal();</span>
       }
 
-<span class="pc bpc" id="L129" title="2 of 4 branches missed.">      if (coursePage.getPageNumber() != pageNumber || coursePage.getTotal() != totalCourses) {</span>
-<span class="nc" id="L130">        throw new IllegalStateException(&quot;Inconsistent course pagination&quot;);</span>
+<span class="fc bfc" id="L129" title="All 4 branches covered.">      if (coursePage.getPageNumber() != pageNumber || coursePage.getTotal() != totalCourses) {</span>
+<span class="fc" id="L130">        throw new IllegalStateException(&quot;Inconsistent course pagination&quot;);</span>
       }
 
 <span class="fc" id="L133">      int coursesOnPage = coursePage.getClasses().size();</span>
-<span class="pc bpc" id="L134" title="1 of 4 branches missed.">      if (coursesOnPage == 0 &amp;&amp; coursesRead &lt; totalCourses) {</span>
-<span class="nc" id="L135">        throw new IllegalStateException(&quot;Course data ended before the reported total&quot;);</span>
+<span class="fc bfc" id="L134" title="All 4 branches covered.">      if (coursesOnPage == 0 &amp;&amp; coursesRead &lt; totalCourses) {</span>
+<span class="fc" id="L135">        throw new IllegalStateException(&quot;Course data ended before the reported total&quot;);</span>
       }
 
 <span class="fc" id="L138">      coursesRead += coursesOnPage;</span>
@@ -140,8 +140,8 @@ public class UCSBCurriculumService {
 <span class="fc" id="L140">      pageNumber++;</span>
 <span class="fc bfc" id="L141" title="All 2 branches covered.">    } while (coursesRead &lt; totalCourses);</span>
 
-<span class="pc bpc" id="L143" title="1 of 2 branches missed.">    if (coursesRead != totalCourses) {</span>
-<span class="nc" id="L144">      throw new IllegalStateException(&quot;Course count does not match the reported total&quot;);</span>
+<span class="fc bfc" id="L143" title="All 2 branches covered.">    if (coursesRead != totalCourses) {</span>
+<span class="fc" id="L144">      throw new IllegalStateException(&quot;Course count does not match the reported total&quot;);</span>
     }
 
 <span class="fc" id="L147">    return result;</span>
