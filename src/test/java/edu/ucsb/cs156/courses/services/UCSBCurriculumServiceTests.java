@@ -20,6 +20,8 @@ import edu.ucsb.cs156.courses.documents.SectionFixtures;
 import java.util.List;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -50,6 +52,41 @@ public class UCSBCurriculumServiceTests {
             "?quarter=20222&subjectCode=MATH&pageNumber=%d&pageSize=100&includeClassSections=true",
             pageNumber);
     return (UCSBCurriculumService.CURRICULUM_ENDPOINT + params).replace("{apiHost}", apiHost);
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @CsvSource({
+    "wrong page number, 1, 2, 1",
+    "changed total, 2, 3, 1",
+    "premature empty page, 2, 2, 0",
+    "too many courses, 2, 2, 2"
+  })
+  public void test_getConvertedSections_rejectsInvalidPagination(
+      String scenario, int returnedPage, int returnedTotal, int courseCount) throws Exception {
+    ObjectMapper mapper = new ObjectMapper();
+
+    CoursePage firstPage = CoursePage.fromJSON(CoursePageFixtures.COURSE_PAGE_JSON_MATH3B);
+    firstPage.setPageSize(1);
+    firstPage.setTotal(2);
+
+    CoursePage secondPage = new CoursePage();
+    secondPage.setPageNumber(returnedPage);
+    secondPage.setPageSize(1);
+    secondPage.setTotal(returnedTotal);
+    secondPage.setClasses(
+        java.util.Collections.nCopies(courseCount, firstPage.getClasses().get(0)));
+
+    mockRestServiceServer
+        .expect(requestTo(mathCourseSearchUrl(1)))
+        .andRespond(withSuccess(mapper.writeValueAsString(firstPage), MediaType.APPLICATION_JSON));
+
+    mockRestServiceServer
+        .expect(requestTo(mathCourseSearchUrl(2)))
+        .andRespond(withSuccess(mapper.writeValueAsString(secondPage), MediaType.APPLICATION_JSON));
+
+    assertThrows(IllegalStateException.class, () -> ucs.getConvertedSections("MATH", "20222", "A"));
+
+    mockRestServiceServer.verify();
   }
 
   @Test
