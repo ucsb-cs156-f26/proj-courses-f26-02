@@ -95,4 +95,169 @@ describe("CourseOverTimeDescriptionIndexPage tests", () => {
 
     expect(screen.getByText("COMP ENGR SEMINAR")).toBeInTheDocument();
   });
+
+  test("displays 'No courses found' message when search returns empty results", async () => {
+    axiosMock.onGet("/api/public/description/search").reply(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => resolve([200, []]), 100);
+        }),
+    );
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <CourseOverTimeDescriptionIndexPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const selectStartQuarter = screen.getByLabelText("Start Quarter");
+    await userEvent.selectOptions(selectStartQuarter, "20222");
+    const selectEndQuarter = screen.getByLabelText("End Quarter");
+    await userEvent.selectOptions(selectEndQuarter, "20222");
+    const enterSearchTerms = screen.getByLabelText("Search Terms");
+    await userEvent.type(enterSearchTerms, "test");
+    const selectCheckbox = screen.getByTestId(
+      "CourseOverTimeDescriptionSearchForm-checkbox",
+    );
+    await userEvent.click(selectCheckbox);
+
+    const submitButton = screen.getByText("Submit");
+    expect(submitButton).toBeInTheDocument();
+    axiosMock.resetHistory();
+    await userEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Loading courses.../i)).toBeInTheDocument();
+    });
+
+    expect(
+      screen.queryByText(/No courses were found with the specified criteria./i),
+    ).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/No courses were found with the specified criteria./i),
+      ).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText("CMPSC")).not.toBeInTheDocument();
+  });
+
+  test("does not display 'No courses found' before search", async () => {
+    axiosMock.onGet("/api/public/description/search").reply(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => resolve([200, []]), 100);
+        }),
+    );
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <CourseOverTimeDescriptionIndexPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Start Quarter")).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(screen.getByLabelText("End Quarter")).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(screen.getByLabelText("Search Terms")).toBeInTheDocument();
+    });
+
+    expect(
+      screen.queryByText(/No courses were found with the specified criteria./i),
+    ).not.toBeInTheDocument();
+
+    expect(screen.queryByText(/Loading courses.../i)).not.toBeInTheDocument();
+  });
+
+  test("does not display 'No courses found' while loading", async () => {
+    axiosMock.onGet("/api/public/description/search").reply(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => resolve([200, []]), 100);
+        }),
+    );
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <CourseOverTimeDescriptionIndexPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const submitButton = screen.getByText("Submit");
+    await userEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Loading courses.../i)).toBeInTheDocument();
+    });
+
+    expect(
+      screen.queryByText(/No courses were found with the specified criteria./i),
+    ).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/No courses were found with the specified criteria./i),
+      ).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText(/Loading courses.../i)).not.toBeInTheDocument();
+  });
+
+  test("displays 'loading' while search is in progress", async () => {
+    axiosMock.onGet("/api/public/description/search").reply(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => resolve([200, threeSections]), 100);
+        }),
+    );
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <CourseOverTimeDescriptionIndexPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const selectStartQuarter = screen.getByLabelText("Start Quarter");
+    await userEvent.selectOptions(selectStartQuarter, "20222");
+    const selectEndQuarter = screen.getByLabelText("End Quarter");
+    await userEvent.selectOptions(selectEndQuarter, "20222");
+    const enterSearchTerms = screen.getByLabelText("Search Terms");
+    await userEvent.type(enterSearchTerms, "test");
+    const selectCheckbox = screen.getByTestId(
+      "CourseOverTimeDescriptionSearchForm-checkbox",
+    );
+    await userEvent.click(selectCheckbox);
+
+    const submitButton = screen.getByText("Submit");
+    expect(submitButton).toBeInTheDocument();
+    axiosMock.resetHistory();
+    await userEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Loading courses.../i)).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText("COMP ENGR SEMINAR")).not.toBeInTheDocument();
+    expect(screen.queryByText("Enrolled")).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByText("COMP ENGR SEMINAR")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText(/Loading courses.../i)).not.toBeInTheDocument();
+    expect(screen.queryByText("Enrolled")).toBeInTheDocument();
+  });
 });
