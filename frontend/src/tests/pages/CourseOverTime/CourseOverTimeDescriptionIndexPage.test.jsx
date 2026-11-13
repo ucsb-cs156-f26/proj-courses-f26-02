@@ -194,6 +194,10 @@ describe("CourseOverTimeDescriptionIndexPage tests", () => {
       </QueryClientProvider>,
     );
 
+    await waitFor(() => {
+      expect(screen.getByText("Submit")).toBeInTheDocument();
+    });
+
     const submitButton = screen.getByText("Submit");
     await userEvent.click(submitButton);
 
@@ -206,12 +210,11 @@ describe("CourseOverTimeDescriptionIndexPage tests", () => {
     ).not.toBeInTheDocument();
 
     await waitFor(() => {
+      expect(screen.queryByText(/Loading courses.../i)).not.toBeInTheDocument();
       expect(
         screen.getByText(/No courses were found with the specified criteria./i),
       ).toBeInTheDocument();
     });
-
-    expect(screen.queryByText(/Loading courses.../i)).not.toBeInTheDocument();
   });
 
   test("displays 'loading' while search is in progress", async () => {
