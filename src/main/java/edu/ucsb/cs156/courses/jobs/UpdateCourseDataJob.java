@@ -68,7 +68,8 @@ public class UpdateCourseDataJob implements JobContextConsumer {
 
   public Update updateUpdatesCollection(
       String quarterYYYYQ, String subjectArea, int saved, int updated, int errors) {
-    Update update = new Update(null, subjectArea, quarterYYYYQ, saved, updated, errors, null);
+    Update update =
+        new Update(null, subjectArea, quarterYYYYQ, saved, updated, errors, null, errors == 0);
     Update savedUpdate = updateCollection.save(update);
     return savedUpdate;
   }
