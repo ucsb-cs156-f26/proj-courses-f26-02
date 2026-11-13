@@ -260,4 +260,45 @@ describe("CourseOverTimeDescriptionIndexPage tests", () => {
     expect(screen.queryByText(/Loading courses.../i)).not.toBeInTheDocument();
     expect(screen.queryByText("Enrolled")).toBeInTheDocument();
   });
+
+  test("does not display ConvertedSectionTable when no results", async () => {
+    axiosMock.onGet("/api/public/description/search").reply(
+      () =>
+        new Promise((resolve) => {
+          setTimeout(() => resolve([200, []]), 100);
+        }),
+    );
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <CourseOverTimeDescriptionIndexPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Submit")).toBeInTheDocument();
+    });
+
+    const submitButton = screen.getByText("Submit");
+    await userEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/No courses were found with the specified criteria./i),
+      ).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText("Quarter")).not.toBeInTheDocument();
+    expect(screen.queryByText("CourseId")).not.toBeInTheDocument();
+    expect(screen.queryByText("Title")).not.toBeInTheDocument();
+    expect(screen.queryByText("Status")).not.toBeInTheDocument();
+    expect(screen.queryByText("Enrolled")).not.toBeInTheDocument();
+    expect(screen.queryByText("Days")).not.toBeInTheDocument();
+    expect(screen.queryByText("Time")).not.toBeInTheDocument();
+    expect(screen.queryByText("Locations")).not.toBeInTheDocument();
+    expect(screen.queryByText("Instructors")).not.toBeInTheDocument();
+    expect(screen.queryByText("Section")).not.toBeInTheDocument();
+  });
 });
