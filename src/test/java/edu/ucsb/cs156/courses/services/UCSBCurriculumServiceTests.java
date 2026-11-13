@@ -1,26 +1,34 @@
 package edu.ucsb.cs156.courses.services;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.ucsb.cs156.courses.documents.ConvertedSection;
+import edu.ucsb.cs156.courses.documents.Course;
 import edu.ucsb.cs156.courses.documents.CoursePage;
 import edu.ucsb.cs156.courses.documents.CoursePageFixtures;
 import edu.ucsb.cs156.courses.documents.PersonalSectionsFixtures;
 import edu.ucsb.cs156.courses.documents.Primary;
+import edu.ucsb.cs156.courses.documents.Section;
 import edu.ucsb.cs156.courses.documents.SectionFixtures;
 import java.util.List;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.autoconfigure.web.client.RestClientTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 
 @RestClientTest(UCSBCurriculumService.class)
@@ -37,6 +45,84 @@ public class UCSBCurriculumServiceTests {
   @Mock private RestTemplate restTemplate;
 
   @Autowired private UCSBCurriculumService ucs;
+
+  private String mathCourseSearchUrl(int pageNumber) {
+    String params =
+        String.format(
+            "?quarter=20222&subjectCode=MATH&pageNumber=%d&pageSize=100&includeClassSections=true",
+            pageNumber);
+    return (UCSBCurriculumService.CURRICULUM_ENDPOINT + params).replace("{apiHost}", apiHost);
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @CsvSource({
+    "wrong page number, 1, 2, 1",
+    "changed total, 2, 3, 1",
+    "premature empty page, 2, 2, 0",
+    "too many courses, 2, 2, 2"
+  })
+  public void test_getConvertedSections_rejectsInvalidPagination(
+      String scenario, int returnedPage, int returnedTotal, int courseCount) throws Exception {
+    ObjectMapper mapper = new ObjectMapper();
+
+    CoursePage firstPage = CoursePage.fromJSON(CoursePageFixtures.COURSE_PAGE_JSON_MATH3B);
+    firstPage.setPageSize(1);
+    firstPage.setTotal(2);
+
+    CoursePage secondPage = new CoursePage();
+    secondPage.setPageNumber(returnedPage);
+    secondPage.setPageSize(1);
+    secondPage.setTotal(returnedTotal);
+    secondPage.setClasses(
+        java.util.Collections.nCopies(courseCount, firstPage.getClasses().get(0)));
+
+    mockRestServiceServer
+        .expect(requestTo(mathCourseSearchUrl(1)))
+        .andRespond(withSuccess(mapper.writeValueAsString(firstPage), MediaType.APPLICATION_JSON));
+
+    mockRestServiceServer
+        .expect(requestTo(mathCourseSearchUrl(2)))
+        .andRespond(withSuccess(mapper.writeValueAsString(secondPage), MediaType.APPLICATION_JSON));
+
+    assertThrows(IllegalStateException.class, () -> ucs.getConvertedSections("MATH", "20222", "A"));
+
+    mockRestServiceServer.verify();
+  }
+
+  @Test
+  public void test_getConvertedSections_emptyResult() throws Exception {
+    String json =
+        """
+      {"pageNumber":1,"pageSize":100,"total":0,"classes":[]}
+      """;
+
+    mockRestServiceServer
+        .expect(requestTo(mathCourseSearchUrl(1)))
+        .andRespond(withSuccess(json, MediaType.APPLICATION_JSON));
+
+    assertEquals(List.of(), ucs.getConvertedSections("MATH", "20222", "A"));
+    mockRestServiceServer.verify();
+  }
+
+  @Test
+  public void test_getConvertedSections_secondPageFailure() throws Exception {
+    CoursePage firstPage = CoursePage.fromJSON(CoursePageFixtures.COURSE_PAGE_JSON_MATH3B);
+    firstPage.setPageSize(1);
+    firstPage.setTotal(2);
+
+    mockRestServiceServer
+        .expect(requestTo(mathCourseSearchUrl(1)))
+        .andRespond(
+            withSuccess(
+                new ObjectMapper().writeValueAsString(firstPage), MediaType.APPLICATION_JSON));
+
+    mockRestServiceServer.expect(requestTo(mathCourseSearchUrl(2))).andRespond(withServerError());
+
+    assertThrows(
+        HttpServerErrorException.class, () -> ucs.getConvertedSections("MATH", "20222", "A"));
+
+    mockRestServiceServer.verify();
+  }
 
   @Test
   public void test_getJSON_success() throws Exception {
@@ -64,6 +150,55 @@ public class UCSBCurriculumServiceTests {
     String result = ucs.getJSON(subjectArea, quarter, level);
 
     assertEquals(expectedResult, result);
+  }
+
+  @Test
+  public void test_getConvertedSections_fetchesAllPages() throws Exception {
+    List<Course> courses =
+        IntStream.rangeClosed(1, 101)
+            .mapToObj(
+                i ->
+                    Course.builder()
+                        .quarter("20261")
+                        .courseId(String.format("CMPSC   %3d", i))
+                        .classSections(
+                            List.of(
+                                Section.builder()
+                                    .enrollCode(String.valueOf(10000 + i))
+                                    .section("0100")
+                                    .build()))
+                        .build())
+            .toList();
+
+    ObjectMapper mapper = new ObjectMapper();
+
+    for (int pageNumber = 1; pageNumber <= 2; pageNumber++) {
+      CoursePage page = new CoursePage();
+      page.setPageNumber(pageNumber);
+      page.setPageSize(100);
+      page.setTotal(101);
+
+      int start = (pageNumber - 1) * 100;
+      page.setClasses(courses.subList(start, Math.min(start + 100, 101)));
+
+      String params =
+          String.format(
+              "?quarter=20261&subjectCode=CMPSC&pageNumber=%d&pageSize=100&includeClassSections=true",
+              pageNumber);
+      String url =
+          (UCSBCurriculumService.CURRICULUM_ENDPOINT + params).replace("{apiHost}", apiHost);
+
+      mockRestServiceServer
+          .expect(requestTo(url))
+          .andRespond(withSuccess(mapper.writeValueAsString(page), MediaType.APPLICATION_JSON));
+    }
+
+    List<ConvertedSection> result = ucs.getConvertedSections("CMPSC", "20261", "A");
+
+    assertEquals(101, result.size());
+    assertEquals("10001", result.get(0).getSection().getEnrollCode());
+    assertEquals("10101", result.get(100).getSection().getEnrollCode());
+    mockRestServiceServer.verify();
   }
 
   @Test

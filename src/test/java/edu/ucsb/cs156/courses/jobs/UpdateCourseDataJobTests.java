@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.ucsb.cs156.courses.collections.ConvertedSectionCollection;
 import edu.ucsb.cs156.courses.collections.UpdateCollection;
 import edu.ucsb.cs156.courses.documents.ConvertedSection;
@@ -29,6 +30,7 @@ import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -54,6 +56,20 @@ public class UpdateCourseDataJobTests {
 
   Job jobStarted = Job.builder().build();
   JobContext ctx = new JobContext(null, jobStarted);
+
+  private void assertSavedUpdateComplete(boolean expected) {
+    ArgumentCaptor<Update> captor = ArgumentCaptor.forClass(Update.class);
+    verify(updateCollection).save(captor.capture());
+
+    boolean complete =
+        new ObjectMapper()
+            .findAndRegisterModules()
+            .valueToTree(captor.getValue())
+            .path("complete")
+            .asBoolean(false);
+
+    assertEquals(expected, complete);
+  }
 
   @Test
   void test_subject_and_quarter_range() throws Exception {
@@ -102,7 +118,7 @@ public class UpdateCourseDataJobTests {
     when(ucsbapiQuarterService.isQuarterInRegistrationPass(anyString())).thenReturn(false);
 
     LocalDateTime someTime = LocalDateTime.parse("2022-03-05T15:50:10");
-    Update update = new Update(null, "CMPSC", "20211", 14, 0, 0, someTime);
+    Update update = new Update(null, "CMPSC", "20211", 14, 0, 0, someTime, true);
     when(updateCollection.save(any())).thenReturn(update);
 
     // Act
@@ -120,15 +136,14 @@ public class UpdateCourseDataJobTests {
             ucsbapiQuarterService,
             jobRateLimit);
     job.accept(ctx);
-
-    // Assert
+    assertSavedUpdateComplete(true);
 
     String expected =
         """
                 Updating courses from 20211 to 20211 for 1 subjects
                 Updating courses for [CMPSC 20211]
                 14 new sections saved, 0 sections updated, 0 errors, last update: 2022-03-05T15:50:10
-                Saved update: Update(_id=null, subjectArea=CMPSC, quarter=20211, saved=14, updated=0, errors=0, lastUpdate=2022-03-05T15:50:10)
+                Saved update: Update(_id=null, subjectArea=CMPSC, quarter=20211, saved=14, updated=0, errors=0, lastUpdate=2022-03-05T15:50:10, complete=true)
                 Finished updating courses""";
 
     assertEquals(expected, jobStarted.getLog());
@@ -168,7 +183,7 @@ public class UpdateCourseDataJobTests {
     when(ucsbapiQuarterService.isQuarterInRegistrationPass(anyString())).thenReturn(false);
 
     LocalDateTime someTime = LocalDateTime.parse("2022-03-05T15:50:10");
-    Update update = new Update(null, "MATH", "20211", 2, 1, 0, someTime);
+    Update update = new Update(null, "MATH", "20211", 2, 1, 0, someTime, true);
     when(updateCollection.save(any())).thenReturn(update);
 
     // Act
@@ -186,15 +201,14 @@ public class UpdateCourseDataJobTests {
             ucsbapiQuarterService,
             jobRateLimit);
     job.accept(ctx);
-
-    // Assert
+    assertSavedUpdateComplete(true);
 
     String expected =
         """
                 Updating courses from 20211 to 20211 for 1 subjects
                 Updating courses for [MATH 20211]
                 2 new sections saved, 1 sections updated, 0 errors, last update: 2022-03-05T15:50:10
-                Saved update: Update(_id=null, subjectArea=MATH, quarter=20211, saved=2, updated=1, errors=0, lastUpdate=2022-03-05T15:50:10)
+                Saved update: Update(_id=null, subjectArea=MATH, quarter=20211, saved=2, updated=1, errors=0, lastUpdate=2022-03-05T15:50:10, complete=true)
                 Finished updating courses""";
 
     assertEquals(expected, jobStarted.getLog());
@@ -227,7 +241,7 @@ public class UpdateCourseDataJobTests {
     when(ucsbapiQuarterService.isQuarterInRegistrationPass(anyString())).thenReturn(false);
 
     LocalDateTime someTime = LocalDateTime.parse("2022-03-05T15:50:10");
-    Update update = new Update(null, "MATH", "20211", 0, 0, 1, someTime);
+    Update update = new Update(null, "MATH", "20211", 0, 0, 1, someTime, false);
     when(updateCollection.save(any())).thenReturn(update);
 
     // Act
@@ -245,6 +259,7 @@ public class UpdateCourseDataJobTests {
             ucsbapiQuarterService,
             jobRateLimit);
     job.accept(ctx);
+    assertSavedUpdateComplete(false);
 
     // Assert
 
@@ -253,7 +268,7 @@ public class UpdateCourseDataJobTests {
                 Updating courses from 20211 to 20211 for 1 subjects
                 Updating courses for [MATH 20211]
                 0 new sections saved, 0 sections updated, 1 errors, last update: 2022-03-05T15:50:10
-                Saved update: Update(_id=null, subjectArea=MATH, quarter=20211, saved=0, updated=0, errors=1, lastUpdate=2022-03-05T15:50:10)
+                Saved update: Update(_id=null, subjectArea=MATH, quarter=20211, saved=0, updated=0, errors=1, lastUpdate=2022-03-05T15:50:10, complete=false)
                 Finished updating courses""";
 
     assertEquals(expected, jobStarted.getLog());
@@ -291,7 +306,7 @@ public class UpdateCourseDataJobTests {
     when(ucsbapiQuarterService.isQuarterInRegistrationPass(anyString())).thenReturn(false);
 
     LocalDateTime someTime = LocalDateTime.parse("2022-03-05T15:50:10");
-    Update update = new Update(null, "MATH", "20211", 0, 1, 1, someTime);
+    Update update = new Update(null, "MATH", "20211", 0, 1, 0, someTime, true);
     when(updateCollection.save(any())).thenReturn(update);
 
     // Act
@@ -317,7 +332,7 @@ public class UpdateCourseDataJobTests {
                 Updating courses from 20211 to 20211 for 1 subjects
                 Updating courses for [MATH 20211]
                 0 new sections saved, 1 sections updated, 0 errors, last update: 2022-03-05T15:50:10
-                Saved update: Update(_id=null, subjectArea=MATH, quarter=20211, saved=0, updated=1, errors=1, lastUpdate=2022-03-05T15:50:10)
+                Saved update: Update(_id=null, subjectArea=MATH, quarter=20211, saved=0, updated=1, errors=0, lastUpdate=2022-03-05T15:50:10, complete=true)
                 Finished updating courses""";
 
     assertEquals(expected, jobStarted.getLog());
@@ -361,7 +376,7 @@ public class UpdateCourseDataJobTests {
     when(ucsbapiQuarterService.isQuarterInRegistrationPass(eq("20211"))).thenReturn(true);
 
     LocalDateTime someTime = LocalDateTime.parse("2022-03-05T15:50:10");
-    Update update = new Update(null, "MATH", "20211", 0, 1, 1, someTime);
+    Update update = new Update(null, "MATH", "20211", 0, 1, 0, someTime, true);
     when(updateCollection.save(any())).thenReturn(update);
 
     EnrollmentDataPoint edp = updatedSection.getEnrollmentDataPoint();
@@ -390,7 +405,7 @@ public class UpdateCourseDataJobTests {
                 Updating courses from 20211 to 20211 for 1 subjects
                 Updating courses for [MATH 20211]
                 0 new sections saved, 1 sections updated, 0 errors, last update: 2022-03-05T15:50:10
-                Saved update: Update(_id=null, subjectArea=MATH, quarter=20211, saved=0, updated=1, errors=1, lastUpdate=2022-03-05T15:50:10)
+                Saved update: Update(_id=null, subjectArea=MATH, quarter=20211, saved=0, updated=1, errors=0, lastUpdate=2022-03-05T15:50:10, complete=true)
                 Finished updating courses""";
 
     assertEquals(expected, jobStarted.getLog());

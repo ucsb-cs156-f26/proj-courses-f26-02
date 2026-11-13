@@ -7,6 +7,7 @@ import edu.ucsb.cs156.courses.documents.CoursePage;
 import edu.ucsb.cs156.courses.documents.GERequirement;
 import edu.ucsb.cs156.courses.documents.Primary;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -64,6 +65,11 @@ public class UCSBCurriculumService {
   public static final String GE_ENDPOINT = "{apiHost}/students/lookups/v1/requirements";
 
   public String getJSON(String subjectArea, String quarter, String courseLevel) throws Exception {
+    return getJSON(subjectArea, quarter, courseLevel, 1);
+  }
+
+  public String getJSON(String subjectArea, String quarter, String courseLevel, int pageNumber)
+      throws Exception {
 
     HttpHeaders headers = new HttpHeaders();
     headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
@@ -76,14 +82,14 @@ public class UCSBCurriculumService {
     String params =
         String.format(
             "?quarter=%s&subjectCode=%s&objLevelCode=%s&pageNumber=%d&pageSize=%d&includeClassSections=%s",
-            quarter, subjectArea, courseLevel, 1, 100, "true");
+            quarter, subjectArea, courseLevel, pageNumber, 100, "true");
     String url = CURRICULUM_ENDPOINT + params;
 
     if (courseLevel.equals("A")) {
       params =
           String.format(
               "?quarter=%s&subjectCode=%s&pageNumber=%d&pageSize=%d&includeClassSections=%s",
-              quarter, subjectArea, 1, 100, "true");
+              quarter, subjectArea, pageNumber, 100, "true");
       url = CURRICULUM_ENDPOINT + params;
     }
 
@@ -107,9 +113,37 @@ public class UCSBCurriculumService {
 
   public List<ConvertedSection> getConvertedSections(
       String subjectArea, String quarter, String courseLevel) throws Exception {
-    String json = getJSON(subjectArea, quarter, courseLevel);
-    CoursePage coursePage = objectMapper.readValue(json, CoursePage.class);
-    List<ConvertedSection> result = coursePage.convertedSections();
+    List<ConvertedSection> result = new ArrayList<>();
+    int pageNumber = 1;
+    int coursesRead = 0;
+    int totalCourses = -1;
+
+    do {
+      String json = getJSON(subjectArea, quarter, courseLevel, pageNumber);
+      CoursePage coursePage = objectMapper.readValue(json, CoursePage.class);
+
+      if (pageNumber == 1) {
+        totalCourses = coursePage.getTotal();
+      }
+
+      if (coursePage.getPageNumber() != pageNumber || coursePage.getTotal() != totalCourses) {
+        throw new IllegalStateException("Inconsistent course pagination");
+      }
+
+      int coursesOnPage = coursePage.getClasses().size();
+      if (coursesOnPage == 0 && coursesRead < totalCourses) {
+        throw new IllegalStateException("Course data ended before the reported total");
+      }
+
+      coursesRead += coursesOnPage;
+      result.addAll(coursePage.convertedSections());
+      pageNumber++;
+    } while (coursesRead < totalCourses);
+
+    if (coursesRead != totalCourses) {
+      throw new IllegalStateException("Course count does not match the reported total");
+    }
+
     return result;
   }
 
