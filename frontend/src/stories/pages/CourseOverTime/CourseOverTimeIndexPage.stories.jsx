@@ -26,7 +26,7 @@ Default.parameters = {
       });
     }),
     http.get("/api/currentUser", () => {
-      return HttpResponse.status(403); // returns 403 when not logged in
+      return new HttpResponse(null, { status: 403 }); // returns 403 when not logged in
     }),
     http.get("/api/UCSBSubjects/all", () => {
       return HttpResponse.json(ucsbSubjectsFixtures.threeSubjects, {
@@ -45,9 +45,95 @@ Default.parameters = {
     }),
     http.get("/api/public/courseovertime/search", ({ request }) => {
       toast(`Generated ${request.method} ${request.url}`);
-      return HttpResponse.json(primaryFixtures.f24_math_lowerDiv, {
+      return HttpResponse.json(
+        {
+          courses: primaryFixtures.f24_math_lowerDiv,
+          missingQuarters: [],
+        },
+        {
+          status: 200,
+        },
+      );
+    }),
+  ],
+};
+export const MissingDataWithCourses = Template.bind({});
+MissingDataWithCourses.parameters = {
+  msw: [
+    http.get("/api/systemInfo", () => {
+      return HttpResponse.json(systemInfoFixtures.showingBoth, {
         status: 200,
       });
+    }),
+    http.get("/api/currentUser", () => {
+      return new HttpResponse(null, { status: 403 }); // returns 403 when not logged in
+    }),
+    http.get("/api/UCSBSubjects/all", () => {
+      return HttpResponse.json(ucsbSubjectsFixtures.threeSubjects, {
+        status: 200,
+      });
+    }),
+    http.get("/api/sections/sectionsearch", () => {
+      return HttpResponse.json(personalSectionsFixtures.singleSection, {
+        status: 200,
+      });
+    }),
+    http.get("/api/gradehistory/search", () => {
+      return HttpResponse.json(oneQuarterCourse, {
+        status: 200,
+      });
+    }),
+    http.get("/api/public/courseovertime/search", ({ request }) => {
+      toast(`Generated ${request.method} ${request.url}`);
+      return HttpResponse.json(
+        {
+          courses: primaryFixtures.f24_math_lowerDiv,
+          missingQuarters: ["20221"],
+        },
+        {
+          status: 200,
+        },
+      );
+    }),
+  ],
+};
+export const MissingDataWithoutCourses = Template.bind({});
+MissingDataWithoutCourses.parameters = {
+  msw: [
+    http.get("/api/systemInfo", () => {
+      return HttpResponse.json(systemInfoFixtures.showingBoth, {
+        status: 200,
+      });
+    }),
+    http.get("/api/currentUser", () => {
+      return new HttpResponse(null, { status: 403 }); // returns 403 when not logged in
+    }),
+    http.get("/api/UCSBSubjects/all", () => {
+      return HttpResponse.json(ucsbSubjectsFixtures.threeSubjects, {
+        status: 200,
+      });
+    }),
+    http.get("/api/sections/sectionsearch", () => {
+      return HttpResponse.json(personalSectionsFixtures.singleSection, {
+        status: 200,
+      });
+    }),
+    http.get("/api/gradehistory/search", () => {
+      return HttpResponse.json(oneQuarterCourse, {
+        status: 200,
+      });
+    }),
+    http.get("/api/public/courseovertime/search", ({ request }) => {
+      toast(`Generated ${request.method} ${request.url}`);
+      return HttpResponse.json(
+        {
+          courses: [],
+          missingQuarters: ["20221"],
+        },
+        {
+          status: 200,
+        },
+      );
     }),
   ],
 };

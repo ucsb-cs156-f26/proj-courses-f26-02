@@ -5,10 +5,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.ucsb.cs156.courses.collections.ConvertedSectionCollection;
 import edu.ucsb.cs156.courses.documents.ConvertedSection;
 import edu.ucsb.cs156.courses.documents.Primary;
+import edu.ucsb.cs156.courses.models.Quarter;
+import edu.ucsb.cs156.courses.services.UpdateService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,6 +26,7 @@ public class CourseOverTimeController {
   private ObjectMapper mapper = new ObjectMapper();
 
   @Autowired ConvertedSectionCollection convertedSectionCollection;
+  @Autowired UpdateService updateService;
 
   @Operation(summary = "Get a list of courses over time")
   @GetMapping(value = "/search", produces = "application/json")
@@ -58,6 +62,14 @@ public class CourseOverTimeController {
           @RequestParam
           String courseNumber)
       throws JsonProcessingException {
+    List<String> missingQuarters = new ArrayList<>();
+
+    for (Quarter quarter : Quarter.quarterList(startQtr, endQtr)) {
+      String quarterYYYYQ = quarter.getYYYYQ();
+      if (!updateService.hasCompleteUpdate(subjectArea, quarterYYYYQ)) {
+        missingQuarters.add(quarterYYYYQ);
+      }
+    }
     List<ConvertedSection> courseResults =
         new ArrayList<ConvertedSection>(
             convertedSectionCollection.findByQuarterRangeAndCourseId(
@@ -65,7 +77,8 @@ public class CourseOverTimeController {
 
     List<Primary> primaries = Primary.fromConvertedSections(courseResults);
 
-    String body = mapper.writeValueAsString(primaries);
+    String body =
+        mapper.writeValueAsString(Map.of("courses", primaries, "missingQuarters", missingQuarters));
     return ResponseEntity.ok().body(body);
   }
 

@@ -40,4 +40,8 @@ public class UpdateService {
     Update update = updatePage.getContent().get(0);
     return Optional.of(update.getLastUpdate());
   }
+
+  public boolean hasCompleteUpdate(String subjectArea, String quarterYYYYQ) {
+    return updateCollection.existsBySubjectAreaAndQuarterAndCompleteTrue(subjectArea, quarterYYYYQ);
+  }
 }

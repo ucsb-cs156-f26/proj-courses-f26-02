@@ -1,6 +1,9 @@
 package edu.ucsb.cs156.courses.services;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import edu.ucsb.cs156.courses.collections.UpdateCollection;
@@ -43,5 +46,27 @@ public class UpdateServiceTests {
         .thenReturn(new PageImpl<>(new ArrayList<Update>()));
     Optional<LocalDateTime> optionalLastUpdate = updateService.getLastUpdate("CMPSC", "20221");
     assertEquals(Optional.empty(), optionalLastUpdate);
+  }
+
+  @Test
+  public void test_hasCompleteUpdate_true() {
+    when(updateCollection.existsBySubjectAreaAndQuarterAndCompleteTrue("CMPSC", "20221"))
+        .thenReturn(true);
+
+    boolean result = updateService.hasCompleteUpdate("CMPSC", "20221");
+
+    assertTrue(result);
+    verify(updateCollection).existsBySubjectAreaAndQuarterAndCompleteTrue("CMPSC", "20221");
+  }
+
+  @Test
+  public void test_hasCompleteUpdate_false() {
+    when(updateCollection.existsBySubjectAreaAndQuarterAndCompleteTrue("CMPSC", "20221"))
+        .thenReturn(false);
+
+    boolean result = updateService.hasCompleteUpdate("CMPSC", "20221");
+
+    assertFalse(result);
+    verify(updateCollection).existsBySubjectAreaAndQuarterAndCompleteTrue("CMPSC", "20221");
   }
 }

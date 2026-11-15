@@ -48,9 +48,10 @@ describe("CourseOverTimeIndexPage tests", () => {
 
   test("calls UCSB Course over time search api correctly with 3 section response", async () => {
     axiosMock.onGet("/api/UCSBSubjects/all").reply(200, allTheSubjects);
-    axiosMock
-      .onGet("/api/public/courseovertime/search")
-      .reply(200, primaryFixtures.f24_math_lowerDiv);
+    axiosMock.onGet("/api/public/courseovertime/search").reply(200, {
+      courses: primaryFixtures.f24_math_lowerDiv,
+      missingQuarters: [],
+    });
 
     render(
       <QueryClientProvider client={queryClient}>
@@ -100,7 +101,10 @@ describe("CourseOverTimeIndexPage tests", () => {
     axiosMock.onGet("/api/public/courseovertime/search").reply(
       () =>
         new Promise((resolve) => {
-          setTimeout(() => resolve([200, []]), 100);
+          setTimeout(
+            () => resolve([200, { courses: [], missingQuarters: [] }]),
+            100,
+          );
         }),
     );
 
@@ -168,13 +172,17 @@ describe("CourseOverTimeIndexPage tests", () => {
     ).not.toBeInTheDocument();
 
     expect(screen.queryByText(/Loading courses.../i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   test("does not display 'No courses found' message while loading", async () => {
     axiosMock.onGet("/api/UCSBSubjects/all").reply(200, allTheSubjects);
     axiosMock.onGet("/api/public/courseovertime/search").reply(() => {
       return new Promise((resolve) => {
-        setTimeout(() => resolve([200, []]), 100);
+        setTimeout(
+          () => resolve([200, { courses: [], missingQuarters: [] }]),
+          100,
+        );
       });
     });
 
@@ -228,7 +236,10 @@ describe("CourseOverTimeIndexPage tests", () => {
           () =>
             resolve([
               200,
-              primaryFixtures.singleLectureSectionWithNoDiscussion,
+              {
+                courses: primaryFixtures.singleLectureSectionWithNoDiscussion,
+                missingQuarters: [],
+              },
             ]),
           100,
         );
@@ -276,9 +287,10 @@ describe("CourseOverTimeIndexPage tests", () => {
 
   test("displays course table when search returns results", async () => {
     axiosMock.onGet("/api/UCSBSubjects/all").reply(200, allTheSubjects);
-    axiosMock
-      .onGet("/api/public/courseovertime/search")
-      .reply(200, primaryFixtures.singleLectureSectionWithNoDiscussion);
+    axiosMock.onGet("/api/public/courseovertime/search").reply(200, {
+      courses: primaryFixtures.singleLectureSectionWithNoDiscussion,
+      missingQuarters: [],
+    });
 
     render(
       <QueryClientProvider client={queryClient}>
@@ -322,7 +334,10 @@ describe("CourseOverTimeIndexPage tests", () => {
 
   test("does not display SectionsTable when search returns empty results", async () => {
     axiosMock.onGet("/api/UCSBSubjects/all").reply(200, allTheSubjects);
-    axiosMock.onGet("/api/public/courseovertime/search").reply(200, []);
+    axiosMock.onGet("/api/public/courseovertime/search").reply(200, {
+      courses: [],
+      missingQuarters: [],
+    });
 
     render(
       <QueryClientProvider client={queryClient}>
@@ -356,5 +371,188 @@ describe("CourseOverTimeIndexPage tests", () => {
 
     expect(screen.queryByText("Course ID")).not.toBeInTheDocument();
     expect(screen.queryByText("Title")).not.toBeInTheDocument();
+  });
+
+  test("displays missing data warning instead of no courses message", async () => {
+    axiosMock.onGet("/api/UCSBSubjects/all").reply(200, allTheSubjects);
+    axiosMock.onGet("/api/public/courseovertime/search").reply(200, {
+      courses: [],
+      missingQuarters: ["20221", "20222"],
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <CourseOverTimeIndexPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const selectStartQuarter = screen.getByLabelText("Start Quarter");
+    await userEvent.selectOptions(selectStartQuarter, "20221");
+    const selectEndQuarter = screen.getByLabelText("End Quarter");
+    await userEvent.selectOptions(selectEndQuarter, "20222");
+
+    const expectedKey = "CourseOverTimeSearch.Subject-option-CMPSC";
+    await waitFor(() =>
+      expect(screen.getByTestId(expectedKey)).toBeInTheDocument(),
+    );
+
+    const selectSubject = screen.getByLabelText("Subject Area");
+    await userEvent.selectOptions(selectSubject, "CMPSC");
+    const enterCourseNumber = screen.getByLabelText("Course Number");
+    await userEvent.type(enterCourseNumber, "16");
+
+    const submitButton = screen.getByText("Submit");
+    await userEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("W22, S22");
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Please check back in a few minutes.",
+    );
+    expect(
+      screen.queryByText(/No courses were found with the specified criteria./i),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Course ID")).not.toBeInTheDocument();
+  });
+
+  test("displays missing data warning and preserves course table", async () => {
+    axiosMock.onGet("/api/UCSBSubjects/all").reply(200, allTheSubjects);
+    axiosMock.onGet("/api/public/courseovertime/search").reply(200, {
+      courses: primaryFixtures.singleLectureSectionWithNoDiscussion,
+      missingQuarters: ["20221"],
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <CourseOverTimeIndexPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const selectStartQuarter = screen.getByLabelText("Start Quarter");
+    await userEvent.selectOptions(selectStartQuarter, "20221");
+    const selectEndQuarter = screen.getByLabelText("End Quarter");
+    await userEvent.selectOptions(selectEndQuarter, "20221");
+    const expectedKey = "CourseOverTimeSearch.Subject-option-CMPSC";
+    await waitFor(() =>
+      expect(screen.getByTestId(expectedKey)).toBeInTheDocument(),
+    );
+    const selectSubject = screen.getByLabelText("Subject Area");
+    await userEvent.selectOptions(selectSubject, "CMPSC");
+    const enterCourseNumber = screen.getByLabelText("Course Number");
+    await userEvent.type(enterCourseNumber, "16");
+
+    const submitButton = screen.getByText("Submit");
+    await userEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(screen.getByText("Title")).toBeInTheDocument();
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("W22");
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Please check back in a few minutes.",
+    );
+    expect(screen.getByText("GROUP STUDIES-MATH")).toBeInTheDocument();
+
+    expect(
+      screen.queryByText(/No courses were found with the specified criteria./i),
+    ).not.toBeInTheDocument();
+
+    expect(screen.getByText("Course ID")).toBeInTheDocument();
+    expect(screen.getByText("Title")).toBeInTheDocument();
+    expect(screen.getByText("Session")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("SectionsTable-expand-all-rows"),
+    ).toBeInTheDocument();
+  });
+
+  test("hides old warning while searching and clears it when data is complete", async () => {
+    axiosMock.onGet("/api/UCSBSubjects/all").reply(200, allTheSubjects);
+    axiosMock.onGet("/api/public/courseovertime/search").reply(200, {
+      courses: primaryFixtures.singleLectureSectionWithNoDiscussion,
+      missingQuarters: ["20221"],
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <CourseOverTimeIndexPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const selectStartQuarter = screen.getByLabelText("Start Quarter");
+    await userEvent.selectOptions(selectStartQuarter, "20221");
+    const selectEndQuarter = screen.getByLabelText("End Quarter");
+    await userEvent.selectOptions(selectEndQuarter, "20221");
+    const expectedKey = "CourseOverTimeSearch.Subject-option-CMPSC";
+    await waitFor(() =>
+      expect(screen.getByTestId(expectedKey)).toBeInTheDocument(),
+    );
+    const selectSubject = screen.getByLabelText("Subject Area");
+    await userEvent.selectOptions(selectSubject, "CMPSC");
+    const enterCourseNumber = screen.getByLabelText("Course Number");
+    await userEvent.type(enterCourseNumber, "16");
+
+    const submitButton = screen.getByText("Submit");
+    await userEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(screen.getByText("Title")).toBeInTheDocument();
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("W22");
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Please check back in a few minutes.",
+    );
+    expect(screen.getByText("GROUP STUDIES-MATH")).toBeInTheDocument();
+
+    expect(
+      screen.queryByText(/No courses were found with the specified criteria./i),
+    ).not.toBeInTheDocument();
+
+    expect(screen.getByText("Course ID")).toBeInTheDocument();
+    expect(screen.getByText("Title")).toBeInTheDocument();
+    expect(screen.getByText("Session")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("SectionsTable-expand-all-rows"),
+    ).toBeInTheDocument();
+
+    axiosMock.onGet("/api/public/courseovertime/search").reply(() => {
+      return new Promise((resolve) => {
+        setTimeout(
+          () => resolve([200, { courses: [], missingQuarters: [] }]),
+          100,
+        );
+      });
+    });
+
+    await userEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Loading courses.../i)).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/No courses were found with the specified criteria./i),
+    ).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/No courses were found with the specified criteria./i),
+      ).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.queryByText("GROUP STUDIES-MATH")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Loading courses.../i)).not.toBeInTheDocument();
   });
 });
