@@ -423,32 +423,79 @@ describe("EnrollmentHistoryIndexPage tests", () => {
     ).toMatchObject({ startQtr: "20214", endQtr: "20214" });
   });
 
-  test("rejects whitespace-only course numbers and clears validation after correction", async () => {
-    axiosMock.onGet("/api/enrollment/search").reply(200, []);
-    render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          <EnrollmentHistoryIndexPage />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+  test.each(["CS130A", "ABC", "1234", "16ABC", "16 A", "16!", "-16", "1.5"])(
+    "rejects invalid course number %s before requesting enrollment history",
+    async (courseNumber) => {
+      axiosMock.onGet("/api/enrollment/search").reply(200, []);
+      render(
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter>
+            <EnrollmentHistoryIndexPage />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+      await screen.findByRole("option", { name: "GEOG - Geography" });
+      const input = screen.getByLabelText("Course Number");
+      await userEvent.type(input, courseNumber);
+      await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+      expect(input).toHaveAttribute("aria-invalid", "true");
+      expect(input).toHaveClass("is-invalid");
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Course number should be a 1 to 3 digit number, optionally followed by up to two letters.",
+      );
+      expect(
+        axiosMock.history.get.some(
+          ({ url }) => url === "/api/enrollment/search",
+        ),
+      ).toBe(false);
 
-    await screen.findByRole("option", { name: "GEOG - Geography" });
-    const enterCourseNumber = screen.getByLabelText("Course Number");
-    await userEvent.type(enterCourseNumber, "   ");
-    await userEvent.click(screen.getByRole("button", { name: "Submit" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Enter a course number.",
-    );
-    expect(
-      axiosMock.history.get.some(({ url }) => url === "/api/enrollment/search"),
-    ).toBe(false);
-    await userEvent.clear(enterCourseNumber);
-    await userEvent.type(enterCourseNumber, "16");
-    await userEvent.click(screen.getByRole("button", { name: "Submit" }));
-    expect(
-      await screen.findByText(/No matching enrollment history/),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-  });
+      await userEvent.clear(input);
+      await userEvent.type(input, " 130ab ");
+      await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+      expect(
+        await screen.findByText(/No matching enrollment history/),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      expect(input).not.toHaveClass("is-invalid");
+      expect(
+        axiosMock.history.get.find(
+          ({ url }) => url === "/api/enrollment/search",
+        ).params.courseNumber,
+      ).toBe("130AB");
+    },
+  );
+
+  test.each(["", "   "])(
+    "rejects empty or whitespace-only course number %j and clears validation after correction",
+    async (courseNumber) => {
+      axiosMock.onGet("/api/enrollment/search").reply(200, []);
+      render(
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter>
+            <EnrollmentHistoryIndexPage />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+
+      await screen.findByRole("option", { name: "GEOG - Geography" });
+      const enterCourseNumber = screen.getByLabelText("Course Number");
+      if (courseNumber) await userEvent.type(enterCourseNumber, courseNumber);
+      await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Course Number is required.",
+      );
+      expect(
+        axiosMock.history.get.some(
+          ({ url }) => url === "/api/enrollment/search",
+        ),
+      ).toBe(false);
+      await userEvent.clear(enterCourseNumber);
+      await userEvent.type(enterCourseNumber, "16");
+      await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+      expect(
+        await screen.findByText(/No matching enrollment history/),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    },
+  );
 });

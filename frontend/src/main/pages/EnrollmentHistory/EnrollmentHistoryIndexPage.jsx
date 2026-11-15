@@ -5,6 +5,7 @@ import SingleQuarterDropdown from "main/components/Quarters/SingleQuarterDropdow
 import BasicLayout from "main/layouts/BasicLayout/BasicLayout";
 import { Alert, Button, Col, Container, Form, Row } from "react-bootstrap";
 import { useBackend, useBackendMutation } from "main/utils/useBackend";
+import { courseNumRegex } from "main/utils/courseNumberUtilities";
 
 export default function EnrollmentHistoryIndexPage() {
   const { data: systemInfo } = useSystemInfo();
@@ -29,6 +30,7 @@ export default function EnrollmentHistoryIndexPage() {
     [],
   );
   const [validationError, setValidationError] = useState("");
+  const [courseNumberError, setCourseNumberError] = useState("");
   const search = useBackendMutation(
     (params) => ({ url: "/api/enrollment/search", params }),
     {},
@@ -37,6 +39,8 @@ export default function EnrollmentHistoryIndexPage() {
   const handleSubmit = (event) => {
     event.preventDefault();
     search.reset();
+    setValidationError("");
+    setCourseNumberError("");
     if (startQuarter > endQuarter) {
       setValidationError(
         "Start Quarter must be before or equal to End Quarter.",
@@ -46,7 +50,13 @@ export default function EnrollmentHistoryIndexPage() {
     const form = new FormData(event.currentTarget);
     const courseNumber = form.get("courseNumber").trim().toUpperCase();
     if (!courseNumber) {
-      setValidationError("Enter a course number.");
+      setCourseNumberError("Course Number is required.");
+      return;
+    }
+    if (!courseNumRegex.test(courseNumber)) {
+      setCourseNumberError(
+        "Course number should be a 1 to 3 digit number, optionally followed by up to two letters.",
+      );
       return;
     }
     setValidationError("");
@@ -62,7 +72,7 @@ export default function EnrollmentHistoryIndexPage() {
     <BasicLayout>
       <div className="pt-2">
         <h5>UCSB Course Enrollment History Search</h5>
-        <Form onSubmit={handleSubmit}>
+        <Form onSubmit={handleSubmit} noValidate>
           <Container>
             <Row>
               <Col md="auto">
@@ -101,12 +111,27 @@ export default function EnrollmentHistoryIndexPage() {
               <Col>
                 <Form.Group controlId="EnrollmentHistorySearch.CourseNumber">
                   <Form.Label>Course Number</Form.Label>
-                  <Form.Control name="courseNumber" required />
+                  <Form.Control
+                    name="courseNumber"
+                    required
+                    isInvalid={Boolean(courseNumberError)}
+                    aria-invalid={Boolean(courseNumberError)}
+                    aria-describedby="EnrollmentHistorySearch.CourseNumber.Feedback"
+                  />
                   <Form.Text muted>
                     {
                       "For example: '16' or '130A'; omit the subject area prefix."
                     }
                   </Form.Text>
+                  {courseNumberError && (
+                    <Form.Control.Feedback
+                      type="invalid"
+                      id="EnrollmentHistorySearch.CourseNumber.Feedback"
+                      role="alert"
+                    >
+                      {courseNumberError}
+                    </Form.Control.Feedback>
+                  )}
                 </Form.Group>
               </Col>
             </Row>
