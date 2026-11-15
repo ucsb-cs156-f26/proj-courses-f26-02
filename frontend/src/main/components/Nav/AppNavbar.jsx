@@ -1,3 +1,4 @@
+
 import {
   Alert,
   Button,
@@ -114,6 +115,13 @@ export default function AppNavbar({
                   data-testid="appnavbar-course-over-time-search"
                 >
                   Course History
+                </NavDropdown.Item>
+                <NavDropdown.Item
+                  as={Link}
+                  to="/enrollmenthistory/search"
+                  data-testid="appnavbar-enrollment-history-search"
+                >
+                  Enrollment History
                 </NavDropdown.Item>
                 <NavDropdown.Item
                   as={Link}
