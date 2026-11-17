@@ -282,6 +282,25 @@ describe("AppNavbar tests", () => {
     ).toBeInTheDocument();
   });
 
+  test("links to Enrollment History from Other Searches", async () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <AppNavbar
+            currentUser={currentUserFixtures.userOnly}
+            systemInfo={systemInfoFixtures.showingBoth}
+          />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    screen.getByRole("button", { name: "Other Searches" }).click();
+
+    expect(
+      await screen.findByRole("link", { name: "Enrollment History" }),
+    ).toHaveAttribute("href", "/enrollmenthistory/search");
+  });
+
   test("renders the Instructor Course Over Time menu correctly", async () => {
     const currentUser = currentUserFixtures.userOnly;
     const systemInfo = systemInfoFixtures.showingBoth;

@@ -140,7 +140,6 @@ describe("CourseDetailsIndexPage tests", () => {
           endQtr: "20221",
           subjectArea: "CHEM",
           courseNumber: "184",
-          enrollCd: "06619",
         },
       })
       .reply(() => [200, enrollmentHistoryResponse]);
@@ -206,7 +205,6 @@ describe("CourseDetailsIndexPage tests", () => {
       endQtr: "20221",
       subjectArea: "CHEM",
       courseNumber: "184",
-      enrollCd: "06619",
     });
   });
 
@@ -214,24 +212,52 @@ describe("CourseDetailsIndexPage tests", () => {
     renderPage();
 
     expect(await screen.findByText("06619 - Section 0100")).toBeInTheDocument();
+    expect(screen.getByText("Total - Section All")).toBeInTheDocument();
   });
 
-  test("filters enrollment history graph to the selected enroll code", async () => {
+  test("renders all returned sections alongside the total enrollment", async () => {
     renderPage();
 
     expect(await screen.findByText("06619 - Section 0100")).toBeInTheDocument();
-    expect(screen.queryByText("07617 - Section 0101")).not.toBeInTheDocument();
-    expect(screen.queryByText("07625 - Section 0102")).not.toBeInTheDocument();
+    expect(screen.getByText("07617 - Section 0101")).toBeInTheDocument();
+    expect(screen.getByText("07625 - Section 0102")).toBeInTheDocument();
+    expect(screen.getByText("Total - Section All")).toBeInTheDocument();
   });
 
-  test("renders the selected enrollment history line in blue", async () => {
+  test("renders every section in its palette color and the total in bold black", async () => {
     const { container } = renderPage();
 
     expect(await screen.findByText("06619 - Section 0100")).toBeInTheDocument();
-    expect(container.querySelector(".recharts-line-curve")).toHaveAttribute(
-      "stroke",
-      "#0d6efd",
-    );
+    expect(screen.getByText("Total - Section All")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(container.querySelectorAll(".recharts-line")).toHaveLength(4);
+      const expectedLines = [
+        { label: "06619 - Section 0100", color: "#8884d8", width: "2" },
+        { label: "07617 - Section 0101", color: "#82ca9d", width: "2" },
+        { label: "07625 - Section 0102", color: "#ffc658", width: "2" },
+        { label: "Total - Section All", color: "#000000", width: "3" },
+      ];
+      const curves = container.querySelectorAll(".recharts-line-curve");
+      expect(curves).toHaveLength(expectedLines.length);
+      expectedLines.forEach(({ label, color, width }, index) => {
+        expect(curves[index]).toHaveAttribute("stroke", color);
+        expect(curves[index]).toHaveAttribute("stroke-width", width);
+        expect(screen.getByText(label)).toHaveStyle({ color });
+      });
+      const totalCurve = container.querySelector(
+        '.recharts-line-curve[stroke="#000000"]',
+      );
+      expect(totalCurve).toBeInTheDocument();
+      const sectionCurves = container.querySelectorAll(
+        '.recharts-line-curve:not([stroke="#000000"])',
+      );
+      expect(sectionCurves).toHaveLength(3);
+      sectionCurves.forEach((curve) => {
+        expect(Number(totalCurve.getAttribute("stroke-width"))).toBeGreaterThan(
+          Number(curve.getAttribute("stroke-width")),
+        );
+      });
+    });
   });
 
   test("renders enrollment history graph between course description and grade history", async () => {
