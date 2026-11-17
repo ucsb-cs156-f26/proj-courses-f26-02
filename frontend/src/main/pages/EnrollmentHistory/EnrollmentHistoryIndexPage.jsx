@@ -3,8 +3,9 @@ import { quarterRange } from "main/utils/quarterUtilities";
 import { useSystemInfo } from "main/utils/systemInfo";
 import SingleQuarterDropdown from "main/components/Quarters/SingleQuarterDropdown";
 import BasicLayout from "main/layouts/BasicLayout/BasicLayout";
-import { Button, Col, Container, Form, Row } from "react-bootstrap";
-import { useBackend } from "main/utils/useBackend";
+import { Alert, Button, Col, Container, Form, Row } from "react-bootstrap";
+import { useBackend, useBackendMutation } from "main/utils/useBackend";
+import { courseNumRegex } from "main/utils/courseNumberUtilities";
 
 export default function EnrollmentHistoryIndexPage() {
   const { data: systemInfo } = useSystemInfo();
@@ -28,11 +29,50 @@ export default function EnrollmentHistoryIndexPage() {
     },
     [],
   );
+  const [validationError, setValidationError] = useState("");
+  const [courseNumberError, setCourseNumberError] = useState("");
+  const search = useBackendMutation(
+    (params) => ({ url: "/api/enrollment/search", params }),
+    {},
+  );
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    search.reset();
+    setValidationError("");
+    setCourseNumberError("");
+    if (startQuarter > endQuarter) {
+      setValidationError(
+        "Start Quarter must be before or equal to End Quarter.",
+      );
+      return;
+    }
+    const form = new FormData(event.currentTarget);
+    const courseNumber = form.get("courseNumber").trim().toUpperCase();
+    if (!courseNumber) {
+      setCourseNumberError("Course Number is required.");
+      return;
+    }
+    if (!courseNumRegex.test(courseNumber)) {
+      setCourseNumberError(
+        "Course number should be a 1 to 3 digit number, optionally followed by up to two letters.",
+      );
+      return;
+    }
+    setValidationError("");
+    search.mutate({
+      startQtr: startQuarter,
+      endQtr: endQuarter,
+      subjectArea: form.get("subjectArea"),
+      courseNumber,
+    });
+  };
+
   return (
     <BasicLayout>
       <div className="pt-2">
         <h5>UCSB Course Enrollment History Search</h5>
-        <Form>
+        <Form onSubmit={handleSubmit} noValidate>
           <Container>
             <Row>
               <Col md="auto">
@@ -56,7 +96,7 @@ export default function EnrollmentHistoryIndexPage() {
               <Col md="auto">
                 <Form.Group controlId="EnrollmentHistorySearch.Subject">
                   <Form.Label>Subject Area</Form.Label>
-                  <Form.Control as="select">
+                  <Form.Control as="select" name="subjectArea" required>
                     {subjects.map((subject) => (
                       <option
                         key={subject.subjectCode}
@@ -71,27 +111,67 @@ export default function EnrollmentHistoryIndexPage() {
               <Col>
                 <Form.Group controlId="EnrollmentHistorySearch.CourseNumber">
                   <Form.Label>Course Number</Form.Label>
-                  <Form.Control />
+                  <Form.Control
+                    name="courseNumber"
+                    required
+                    isInvalid={Boolean(courseNumberError)}
+                    aria-invalid={Boolean(courseNumberError)}
+                    aria-describedby="EnrollmentHistorySearch.CourseNumber.Feedback"
+                  />
                   <Form.Text muted>
                     {
                       "For example: '16' or '130A'; omit the subject area prefix."
                     }
                   </Form.Text>
+                  {courseNumberError && (
+                    <Form.Control.Feedback
+                      type="invalid"
+                      id="EnrollmentHistorySearch.CourseNumber.Feedback"
+                      role="alert"
+                    >
+                      {courseNumberError}
+                    </Form.Control.Feedback>
+                  )}
                 </Form.Group>
               </Col>
             </Row>
             <Row className="my-2">
               <Col md="auto">
-                <Button variant="primary" type="button">
+                <Button
+                  variant="primary"
+                  type="submit"
+                  disabled={search.isLoading || subjects.length === 0}
+                >
                   Submit
                 </Button>
               </Col>
             </Row>
-            <Row>
-              <p>This feature not yet implemented; coming soon!</p>
-            </Row>
           </Container>
         </Form>
+        {validationError && <Alert variant="danger">{validationError}</Alert>}
+        {search.isLoading && <p role="status">Loading enrollment history...</p>}
+        {search.isError && (
+          <Alert variant="danger">
+            Unable to load enrollment history. Please try again.
+          </Alert>
+        )}
+        {search.isSuccess && search.data.length === 0 && (
+          <Alert variant="info" role="status">
+            No matching enrollment history is available for the selected
+            criteria.
+          </Alert>
+        )}
+        {search.isSuccess && search.data.length > 0 && (
+          <>
+            <p>
+              Temporary JSON representing information, will be changed to graphs
+              later.
+            </p>
+            <pre aria-label="Enrollment history search results">
+              {JSON.stringify(search.data, null, 2)}
+            </pre>
+          </>
+        )}
       </div>
     </BasicLayout>
   );
