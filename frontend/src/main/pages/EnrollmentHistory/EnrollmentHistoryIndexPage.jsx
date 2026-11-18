@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { quarterRange } from "main/utils/quarterUtilities";
+import { fromFormat, quarterRange } from "main/utils/quarterUtilities";
+import EnrollmentHistoryGraph from "main/components/EnrollmentHistory/EnrollmentHistoryGraph";
 import { useSystemInfo } from "main/utils/systemInfo";
 import SingleQuarterDropdown from "main/components/Quarters/SingleQuarterDropdown";
 import BasicLayout from "main/layouts/BasicLayout/BasicLayout";
@@ -35,6 +36,13 @@ export default function EnrollmentHistoryIndexPage() {
     (params) => ({ url: "/api/enrollment/search", params }),
     {},
   );
+  const historyByQuarter = new Map();
+  for (const point of search.data ?? []) {
+    if (!historyByQuarter.has(point.yyyyq)) {
+      historyByQuarter.set(point.yyyyq, []);
+    }
+    historyByQuarter.get(point.yyyyq).push(point);
+  }
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -161,17 +169,13 @@ export default function EnrollmentHistoryIndexPage() {
             criteria.
           </Alert>
         )}
-        {search.isSuccess && search.data.length > 0 && (
-          <>
-            <p>
-              Temporary JSON representing information, will be changed to graphs
-              later.
-            </p>
-            <pre aria-label="Enrollment history search results">
-              {JSON.stringify(search.data, null, 2)}
-            </pre>
-          </>
-        )}
+        {[...historyByQuarter.keys()].sort().map((quarter) => (
+          <EnrollmentHistoryGraph
+            key={quarter}
+            title={fromFormat(quarter)}
+            data={historyByQuarter.get(quarter)}
+          />
+        ))}
       </div>
     </BasicLayout>
   );
