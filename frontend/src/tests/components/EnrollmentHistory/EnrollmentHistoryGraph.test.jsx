@@ -28,11 +28,17 @@ class ResizeObserver {
 
 global.ResizeObserver = ResizeObserver;
 
+const { recordYAxis } = vi.hoisted(() => ({ recordYAxis: vi.fn() }));
+
 vi.mock("recharts", async () => {
   const OriginalModule = await vi.importActual("recharts");
 
   return {
     ...OriginalModule,
+    YAxis: (props) => {
+      recordYAxis(props);
+      return <OriginalModule.YAxis {...props} />;
+    },
     ResponsiveContainer: ({ height, children }) => (
       <OriginalModule.ResponsiveContainer width={800} height={height}>
         {children}
@@ -330,6 +336,30 @@ describe("EnrollmentHistoryGraph tests", () => {
     expect(container.querySelectorAll(".recharts-line-curve")).toHaveLength(2);
   });
 
+  test.each([0, 500])(
+    "renders a solid gray lecture capacity line at %i",
+    (capacity) => {
+      const { container } = render(
+        <EnrollmentHistoryGraph
+          data={enrollmentDataPointFixtures.cmpsc130aLectureOverTime.slice(
+            0,
+            1,
+          )}
+          lectureCapacity={capacity}
+        />,
+      );
+
+      expect(
+        screen.getByText(`Lecture capacity: ${capacity}`),
+      ).toBeInTheDocument();
+      const line = container.querySelector(".recharts-reference-line-line");
+      expect(line).toHaveAttribute("stroke", "#808080");
+      expect(line).not.toHaveAttribute("stroke-dasharray");
+      expect(line.getAttribute("y1")).toBe(line.getAttribute("y2"));
+      expect(Number(line.getAttribute("y1"))).toBeGreaterThanOrEqual(24);
+    },
+  );
+
   test("renders with the default title and no data", () => {
     const { container } = render(<EnrollmentHistoryGraph />);
 
@@ -341,6 +371,29 @@ describe("EnrollmentHistoryGraph tests", () => {
     expect(screen.queryByText("Total - Section All")).not.toBeInTheDocument();
     expect(container.querySelectorAll(".recharts-line")).toHaveLength(0);
   });
+
+  test.each([
+    [[], 60],
+    [enrollmentDataPointFixtures.cmpsc130aLectureOverTime, undefined],
+  ])(
+    "omits the capacity line and its padding when snapshots or capacity are unavailable",
+    (data, lectureCapacity) => {
+      recordYAxis.mockClear();
+      const { container } = render(
+        <EnrollmentHistoryGraph
+          data={data}
+          lectureCapacity={lectureCapacity}
+        />,
+      );
+
+      expect(
+        container.querySelector(".recharts-reference-line-line"),
+      ).not.toBeInTheDocument();
+      expect(recordYAxis).toHaveBeenLastCalledWith(
+        expect.objectContaining({ padding: undefined }),
+      );
+    },
+  );
 
   test("renders multiple section lines and legend labels", () => {
     const sections =
@@ -361,6 +414,7 @@ describe("EnrollmentHistoryGraph tests", () => {
     expect(screen.getByText("07617 - Section 0101")).toBeInTheDocument();
     expect(screen.getByText("07625 - Section 0102")).toBeInTheDocument();
     expect(screen.getByText("Total - Section All")).toBeInTheDocument();
+    expect(screen.queryByText(/Lecture capacity/)).not.toBeInTheDocument();
     expect(container.querySelectorAll(".recharts-line")).toHaveLength(4);
     const totalCurve = container.querySelector(
       '.recharts-line-curve[stroke="#000000"]',

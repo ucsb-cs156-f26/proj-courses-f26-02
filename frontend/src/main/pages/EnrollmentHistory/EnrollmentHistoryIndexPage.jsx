@@ -7,6 +7,12 @@ import BasicLayout from "main/layouts/BasicLayout/BasicLayout";
 import { Alert, Button, Col, Container, Form, Row } from "react-bootstrap";
 import { useBackend, useBackendMutation } from "main/utils/useBackend";
 import { courseNumRegex } from "main/utils/courseNumberUtilities";
+import { formatInstructors } from "main/utils/sectionUtils";
+
+const courseHistoryUrl = "/api/public/courseovertime/search";
+
+const lectureKey = (quarter, courseId, section) =>
+  JSON.stringify([quarter, courseId?.trim(), section.slice(0, 2)]);
 
 export default function EnrollmentHistoryIndexPage() {
   const { data: systemInfo } = useSystemInfo();
@@ -32,16 +38,38 @@ export default function EnrollmentHistoryIndexPage() {
   );
   const [validationError, setValidationError] = useState("");
   const [courseNumberError, setCourseNumberError] = useState("");
+  const [submittedSearch, setSubmittedSearch] = useState(null);
   const search = useBackendMutation(
     (params) => ({ url: "/api/enrollment/search", params }),
     {},
   );
-  const historyByQuarter = new Map();
-  for (const point of search.data ?? []) {
-    if (!historyByQuarter.has(point.yyyyq)) {
-      historyByQuarter.set(point.yyyyq, []);
+  const { data: courseHistory } = useBackend(
+    [courseHistoryUrl, submittedSearch],
+    {
+      // Stryker disable next-line StringLiteral : Axios defaults to GET.
+      method: "GET",
+      url: courseHistoryUrl,
+      params: submittedSearch,
+    },
+    undefined,
+    { enabled: search.isSuccess && search.data.length > 0 },
+  );
+  const metadataByLecture = new Map();
+  courseHistory?.forEach(({ quarter, courseId, primary }) => {
+    if (primary?.section?.endsWith("00")) {
+      metadataByLecture.set(lectureKey(quarter, courseId, primary.section), {
+        instructors: formatInstructors(primary.instructors),
+        capacity: primary.maxEnroll,
+      });
     }
-    historyByQuarter.get(point.yyyyq).push(point);
+  });
+  const historyByLecture = new Map();
+  for (const point of search.data ?? []) {
+    const key = lectureKey(point.yyyyq, point.courseId, point.section);
+    if (!historyByLecture.has(key)) {
+      historyByLecture.set(key, []);
+    }
+    historyByLecture.get(key).push(point);
   }
 
   const handleSubmit = (event) => {
@@ -68,12 +96,14 @@ export default function EnrollmentHistoryIndexPage() {
       return;
     }
     setValidationError("");
-    search.mutate({
+    const params = {
       startQtr: startQuarter,
       endQtr: endQuarter,
       subjectArea: form.get("subjectArea"),
       courseNumber,
-    });
+    };
+    setSubmittedSearch(params);
+    search.mutate(params);
   };
 
   return (
@@ -169,13 +199,20 @@ export default function EnrollmentHistoryIndexPage() {
             criteria.
           </Alert>
         )}
-        {[...historyByQuarter.keys()].sort().map((quarter) => (
-          <EnrollmentHistoryGraph
-            key={quarter}
-            title={fromFormat(quarter)}
-            data={historyByQuarter.get(quarter)}
-          />
-        ))}
+        {[...historyByLecture.keys()].sort().map((key) => {
+          const data = historyByLecture.get(key);
+          const quarter = fromFormat(data[0].yyyyq);
+          const { instructors, capacity } = metadataByLecture.get(key) ?? {};
+          const title = instructors ? `${quarter} - ${instructors}` : quarter;
+          return (
+            <EnrollmentHistoryGraph
+              key={key}
+              title={title}
+              data={data}
+              lectureCapacity={capacity}
+            />
+          );
+        })}
       </div>
     </BasicLayout>
   );
