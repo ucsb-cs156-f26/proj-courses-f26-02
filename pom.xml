@@ -377,6 +377,7 @@
                     </execution>
                 </executions>
                 <configuration>
+                    <skip>${git.commit.id.skip}</skip>
                     <generateGitPropertiesFile>true</generateGitPropertiesFile>
                     <generateGitPropertiesFilename>${project.build.outputDirectory}/git.properties</generateGitPropertiesFilename>
                     <commitIdGenerationMode>full</commitIdGenerationMode>
