@@ -16,7 +16,7 @@ RUN --mount=id=156-base-mvn,type=cache,target=/root/.m2/repository --mount=id=15
 
 COPY . .
 
-RUN --mount=id=156-base-mvn,type=cache,target=/root/.m2/repository mvn -Pproduction -DskipTests -Dmaven.gitcommitid.skip=true -Dcache.use=true package -B
+RUN --mount=id=156-base-mvn,type=cache,target=/root/.m2/repository mvn -Pproduction -DskipTests -Dcache.use=true package -B
 
 FROM eclipse-temurin:25-jre-alpine
 
