@@ -23,4 +23,6 @@ public class Update {
   private int errors;
 
   @LastModifiedDate private LocalDateTime lastUpdate;
+
+  private boolean complete;
 }
