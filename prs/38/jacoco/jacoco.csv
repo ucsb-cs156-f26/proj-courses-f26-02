@@ -9,7 +9,7 @@ courses,edu.ucsb.cs156.courses.controllers,TestErrorController,0,8,0,0,0,2,0,2,0
 courses,edu.ucsb.cs156.courses.controllers,UCSBCurriculumController,0,64,0,2,0,15,0,8,0,7
 courses,edu.ucsb.cs156.courses.controllers,UCSBAPIQuarterController,0,25,0,0,0,7,0,6,0,6
 courses,edu.ucsb.cs156.courses.controllers,UCSBSectionsController,0,29,0,0,0,6,0,3,0,3
-courses,edu.ucsb.cs156.courses.controllers,UsersController,0,110,0,6,0,18,0,6,0,3
+courses,edu.ucsb.cs156.courses.controllers,UsersController,0,183,0,12,0,30,0,13,0,7
 courses,edu.ucsb.cs156.courses.controllers,PSCourseController,0,833,0,54,0,184,0,51,0,24
 courses,edu.ucsb.cs156.courses.controllers,CourseOverTimeInstructorController,0,51,0,2,0,12,0,3,0,2
 courses,edu.ucsb.cs156.courses.controllers,UpdateController,0,149,0,14,0,24,0,10,0,3
@@ -54,12 +54,13 @@ courses,edu.ucsb.cs156.courses.services,CurrentUserService,0,10,0,2,0,2,0,3,0,2
 courses,edu.ucsb.cs156.courses.services,IsStaleService,0,68,0,6,0,20,0,7,0,4
 courses,edu.ucsb.cs156.courses.services,UCSBAPIQuarterService.new TypeReference() {...},0,8,0,0,0,1,0,1,0,1
 courses,edu.ucsb.cs156.courses.services,SectionCSVLineService,0,13,0,0,0,3,0,3,0,3
+courses,edu.ucsb.cs156.courses.services,ConvertedSectionUpsertService,0,47,0,2,0,15,0,3,0,2
 courses,edu.ucsb.cs156.courses.services,UCSBAPIQuarterService,0,592,0,52,0,140,0,50,0,24
 courses,edu.ucsb.cs156.courses.services,EnrollmentCSVService,0,20,0,2,0,5,0,4,0,3
 courses,edu.ucsb.cs156.courses.services,UCSBSubjectsService.new TypeReference() {...},0,8,0,0,0,1,0,1,0,1
 courses,edu.ucsb.cs156.courses.services,UpdateService,0,38,0,2,0,9,0,3,0,2
 courses,edu.ucsb.cs156.courses.services,GradeHistoryImportServiceImpl.NullHeaderException,0,4,0,0,0,2,0,1,0,1
-courses,edu.ucsb.cs156.courses.services,UCSBCurriculumService,0,990,0,20,0,202,0,27,0,17
+courses,edu.ucsb.cs156.courses.services,UCSBCurriculumService,0,1012,0,22,0,208,0,28,0,17
 courses,edu.ucsb.cs156.courses.services,SystemMessagesService,0,23,0,0,0,5,0,3,0,3
 courses,edu.ucsb.cs156.courses.utilities,CourseUtilities,0,86,0,7,0,18,0,7,0,2
 courses,edu.ucsb.cs156.courses.filters,RateLimitFilter,0,128,0,8,0,38,0,9,0,5
