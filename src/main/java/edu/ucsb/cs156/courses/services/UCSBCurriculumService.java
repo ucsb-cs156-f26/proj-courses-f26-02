@@ -33,6 +33,8 @@ public class UCSBCurriculumService {
 
   @Autowired private ObjectMapper objectMapper;
 
+  @Autowired private ConvertedSectionUpsertService upsertService;
+
   @Value("${app.ucsb.api.consumer_key}")
   private String apiKey;
 
@@ -178,6 +180,13 @@ public class UCSBCurriculumService {
       throws Exception {
     String json = getJSON(subjectArea, quarter, courseLevel);
     CoursePage coursePage = objectMapper.readValue(json, CoursePage.class);
+    for (ConvertedSection section : coursePage.convertedSections()) {
+      try {
+        upsertService.upsert(section);
+      } catch (RuntimeException e) {
+        log.warn("Unable to cache course section from live search", e);
+      }
+    }
     List<Primary> result = coursePage.getPrimaries();
     return result;
   }
