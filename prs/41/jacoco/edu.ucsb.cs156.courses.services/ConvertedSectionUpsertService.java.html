@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ConvertedSectionUpsertService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">courses</a> &gt; <a href="index.source.html" class="el_package">edu.ucsb.cs156.courses.services</a> &gt; <span class="el_source">ConvertedSectionUpsertService.java</span></div><h1>ConvertedSectionUpsertService.java</h1><pre class="source lang-java linenums">package edu.ucsb.cs156.courses.services;
+
+import edu.ucsb.cs156.courses.collections.ConvertedSectionCollection;
+import edu.ucsb.cs156.courses.documents.ConvertedSection;
+import java.util.Optional;
+import org.springframework.stereotype.Service;
+
+@Service
+public class ConvertedSectionUpsertService {
+
+  private final ConvertedSectionCollection collection;
+
+<span class="fc" id="L13">  public ConvertedSectionUpsertService(ConvertedSectionCollection collection) {</span>
+<span class="fc" id="L14">    this.collection = collection;</span>
+<span class="fc" id="L15">  }</span>
+
+  public void upsert(ConvertedSection incoming) {
+<span class="fc" id="L18">    String quarter = incoming.getCourseInfo().getQuarter();</span>
+<span class="fc" id="L19">    String enrollCode = incoming.getSection().getEnrollCode();</span>
+
+<span class="fc" id="L21">    Optional&lt;ConvertedSection&gt; existing =</span>
+<span class="fc" id="L22">        collection.findOneByQuarterAndEnrollCode(quarter, enrollCode);</span>
+
+<span class="fc bfc" id="L24" title="All 2 branches covered.">    if (existing.isPresent()) {</span>
+<span class="fc" id="L25">      ConvertedSection stored = existing.get();</span>
+<span class="fc" id="L26">      stored.setCourseInfo(incoming.getCourseInfo());</span>
+<span class="fc" id="L27">      stored.setSection(incoming.getSection());</span>
+<span class="fc" id="L28">      collection.save(stored);</span>
+<span class="fc" id="L29">    } else {</span>
+<span class="fc" id="L30">      collection.save(incoming);</span>
+    }
+<span class="fc" id="L32">  }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>
