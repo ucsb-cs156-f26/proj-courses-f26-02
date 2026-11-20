@@ -94,6 +94,7 @@ describe("CourseOverTimeDescriptionIndexPage tests", () => {
     );
 
     expect(screen.getByText("COMP ENGR SEMINAR")).toBeInTheDocument();
+    expect(screen.getByText("Session")).toBeInTheDocument();
   });
 
   test("displays 'No courses found' message when search returns empty results", async () => {
