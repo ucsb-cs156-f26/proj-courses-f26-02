@@ -77,11 +77,10 @@ public class UpdateCourseDataJobTests {
   @ParameterizedTest
   @NullSource
   @ValueSource(ints = {0, 12})
-  void test_enrollment_history_handles_unknown_and_known_counts(Integer enrollment) throws Exception {
+  void test_enrollment_history_handles_unknown_and_known_counts(Integer enrollment)
+      throws Exception {
     ConvertedSection section =
-        CoursePage.fromJSON(CoursePageFixtures.COURSE_PAGE_JSON_MATH3B)
-            .convertedSections()
-            .get(0);
+        CoursePage.fromJSON(CoursePageFixtures.COURSE_PAGE_JSON_MATH3B).convertedSections().get(0);
     section.getSection().setEnrolledTotal(enrollment);
 
     when(ucsbCurriculumService.getConvertedSections("MATH", "20271", "A"))
@@ -104,7 +103,8 @@ public class UpdateCourseDataJobTests {
     if (enrollment == null) {
       verifyNoInteractions(enrollmentDataPointRepository);
     } else {
-      ArgumentCaptor<EnrollmentDataPoint> point = ArgumentCaptor.forClass(EnrollmentDataPoint.class);
+      ArgumentCaptor<EnrollmentDataPoint> point =
+          ArgumentCaptor.forClass(EnrollmentDataPoint.class);
       verify(enrollmentDataPointRepository).save(point.capture());
       assertEquals(enrollment.intValue(), point.getValue().getEnrollment());
       assertEquals(section.getSection().getEnrollCode(), point.getValue().getEnrollCd());
