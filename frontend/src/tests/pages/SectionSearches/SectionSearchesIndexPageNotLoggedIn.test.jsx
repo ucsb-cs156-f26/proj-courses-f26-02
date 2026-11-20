@@ -307,7 +307,9 @@ describe("SectionSearchesIndexPageNotLoggedIn tests", () => {
         screen.getByTestId("SectionsTable-cell-row-0-col-courseId"),
       ).toBeInTheDocument();
     });
-
+    expect(
+      screen.getByRole("columnheader", { name: "Session" }),
+    ).toBeInTheDocument();
     expect(
       screen.queryByText(/No courses were found with the specified criteria./i),
     ).not.toBeInTheDocument();
