@@ -87,13 +87,11 @@ public class UpdateCourseDataJob implements JobContextConsumer {
     boolean isInRegistrationPass = ucsbapiQuarterService.isQuarterInRegistrationPass(quarterYYYYQ);
 
     for (ConvertedSection section : convertedSections) {
-      // No branch of this loop ever calls ctx.log() -- all logging happens once, after the loop,
-      // in the summary line below. Without its own checkpoint, this loop has zero opportunities
-      // to notice a cancellation request no matter how many sections it processes.
       ctx.checkCancellation();
+      String enrollCode = "unknown";
       try {
+        enrollCode = section.getSection().getEnrollCode();
         String quarter = section.getCourseInfo().getQuarter();
-        String enrollCode = section.getSection().getEnrollCode();
         Optional<ConvertedSection> optionalSection =
             convertedSectionCollection.findOneByQuarterAndEnrollCode(quarter, enrollCode);
         if (optionalSection.isPresent()) {
@@ -111,6 +109,12 @@ public class UpdateCourseDataJob implements JobContextConsumer {
         }
       } catch (Exception e) {
         errors++;
+        String message =
+            String.format(
+                "Failed updating subject=%s quarter=%s enrollCode=%s: %s",
+                subjectArea, quarterYYYYQ, enrollCode, e);
+        ctx.log(message);
+        log.error(message, e);
       }
     }
 

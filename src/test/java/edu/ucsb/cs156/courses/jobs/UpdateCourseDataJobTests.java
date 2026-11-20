@@ -267,9 +267,11 @@ public class UpdateCourseDataJobTests {
         """
                 Updating courses from 20211 to 20211 for 1 subjects
                 Updating courses for [MATH 20211]
+                Failed updating subject=MATH quarter=20211 enrollCode=%s: java.lang.IllegalArgumentException: Testing Exception Handling!
                 0 new sections saved, 0 sections updated, 1 errors, last update: 2022-03-05T15:50:10
                 Saved update: Update(_id=null, subjectArea=MATH, quarter=20211, saved=0, updated=0, errors=1, lastUpdate=2022-03-05T15:50:10, complete=false)
-                Finished updating courses""";
+                Finished updating courses"""
+            .formatted(section0.getSection().getEnrollCode());
 
     assertEquals(expected, jobStarted.getLog());
   }
