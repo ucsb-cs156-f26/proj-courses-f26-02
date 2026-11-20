@@ -104,7 +104,7 @@ public class UpdateCourseDataJob implements JobContextConsumer {
 <span class="fc" id="L104">          convertedSectionCollection.save(section);</span>
 <span class="fc" id="L105">          newSections++;</span>
         }
-<span class="fc bfc" id="L107" title="All 2 branches covered.">        if (isInRegistrationPass) {</span>
+<span class="fc bfc" id="L107" title="All 4 branches covered.">        if (isInRegistrationPass &amp;&amp; section.getSection().getEnrolledTotal() != null) {</span>
 <span class="fc" id="L108">          enrollmentDataPointRepository.save(section.getEnrollmentDataPoint());</span>
         }
 <span class="fc" id="L110">      } catch (Exception e) {</span>

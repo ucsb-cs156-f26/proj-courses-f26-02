@@ -36,7 +36,7 @@ courses,edu.ucsb.cs156.courses.jobs,UpdateCourseDataJobFactory,0,125,0,2,0,16,0,
 courses,edu.ucsb.cs156.courses.jobs,UploadGradeDataJobFactory,0,11,0,0,0,2,0,2,0,2
 courses,edu.ucsb.cs156.courses.jobs,UploadGradeDataJob,0,13,0,0,0,4,0,1,0,1
 courses,edu.ucsb.cs156.courses.jobs,TestJob,0,19,0,2,0,6,0,2,0,1
-courses,edu.ucsb.cs156.courses.jobs,UpdateCourseDataJob,0,267,0,16,0,62,0,12,0,4
+courses,edu.ucsb.cs156.courses.jobs,UpdateCourseDataJob,0,271,0,18,0,62,0,13,0,4
 courses,edu.ucsb.cs156.courses.errors,EntityNotFoundException,0,47,0,0,0,8,0,2,0,2
 courses,edu.ucsb.cs156.courses.errors,BadEnrollCdException,0,12,0,0,0,3,0,1,0,1
 courses,edu.ucsb.cs156.courses.entities,GradeHistory,0,23,0,4,0,4,0,4,0,2
