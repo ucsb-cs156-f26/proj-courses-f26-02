@@ -104,7 +104,7 @@ public class UpdateCourseDataJob implements JobContextConsumer {
           convertedSectionCollection.save(section);
           newSections++;
         }
-        if (isInRegistrationPass) {
+        if (isInRegistrationPass && section.getSection().getEnrolledTotal() != null) {
           enrollmentDataPointRepository.save(section.getEnrollmentDataPoint());
         }
       } catch (Exception e) {
