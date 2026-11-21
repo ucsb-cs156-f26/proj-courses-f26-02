@@ -30,6 +30,9 @@ import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -69,6 +72,48 @@ public class UpdateCourseDataJobTests {
             .asBoolean(false);
 
     assertEquals(expected, complete);
+  }
+
+  @ParameterizedTest
+  @NullSource
+  @ValueSource(ints = {0, 12})
+  void test_enrollment_history_handles_unknown_and_known_counts(Integer enrollment)
+      throws Exception {
+    ConvertedSection section =
+        CoursePage.fromJSON(CoursePageFixtures.COURSE_PAGE_JSON_MATH3B).convertedSections().get(0);
+    section.getSection().setEnrolledTotal(enrollment);
+
+    when(ucsbCurriculumService.getConvertedSections("MATH", "20271", "A"))
+        .thenReturn(List.of(section));
+    when(ucsbapiQuarterService.isQuarterInRegistrationPass("20271")).thenReturn(true);
+    when(updateCollection.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+    var job =
+        UpdateCourseDataJob.builder()
+            .ucsbCurriculumService(ucsbCurriculumService)
+            .convertedSectionCollection(convertedSectionCollection)
+            .updateCollection(updateCollection)
+            .enrollmentDataPointRepository(enrollmentDataPointRepository)
+            .ucsbapiQuarterService(ucsbapiQuarterService)
+            .build();
+
+    job.updateCourses(ctx, "20271", "MATH");
+
+    verify(convertedSectionCollection).save(section);
+    if (enrollment == null) {
+      verifyNoInteractions(enrollmentDataPointRepository);
+    } else {
+      ArgumentCaptor<EnrollmentDataPoint> point =
+          ArgumentCaptor.forClass(EnrollmentDataPoint.class);
+      verify(enrollmentDataPointRepository).save(point.capture());
+      assertEquals(enrollment.intValue(), point.getValue().getEnrollment());
+      assertEquals(section.getSection().getEnrollCode(), point.getValue().getEnrollCd());
+    }
+    ArgumentCaptor<Update> update = ArgumentCaptor.forClass(Update.class);
+    verify(updateCollection).save(update.capture());
+    assertEquals(1, update.getValue().getSaved());
+    assertEquals(0, update.getValue().getErrors());
+    assertSavedUpdateComplete(true);
   }
 
   @Test
@@ -267,9 +312,11 @@ public class UpdateCourseDataJobTests {
         """
                 Updating courses from 20211 to 20211 for 1 subjects
                 Updating courses for [MATH 20211]
+                Failed updating subject=MATH quarter=20211 enrollCode=%s: java.lang.IllegalArgumentException: Testing Exception Handling!
                 0 new sections saved, 0 sections updated, 1 errors, last update: 2022-03-05T15:50:10
                 Saved update: Update(_id=null, subjectArea=MATH, quarter=20211, saved=0, updated=0, errors=1, lastUpdate=2022-03-05T15:50:10, complete=false)
-                Finished updating courses""";
+                Finished updating courses"""
+            .formatted(section0.getSection().getEnrollCode());
 
     assertEquals(expected, jobStarted.getLog());
   }

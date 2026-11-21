@@ -3,12 +3,15 @@ import BasicLayout from "main/layouts/BasicLayout/BasicLayout";
 import CourseOverTimeSearchForm from "main/components/BasicCourseSearch/CourseOverTimeSearchForm";
 import { useBackendMutation } from "main/utils/useBackend";
 import SectionsTable from "main/components/Sections/SectionsTable";
+import { yyyyqToQyy } from "main/utils/quarterUtilities";
 
 export default function CourseOverTimeIndexPage() {
   // Stryker disable next-line all : Can't test state because hook is internal
   const [courseJSON, setCourseJSON] = useState([]);
   // Stryker disable next-line all : Can't test state because hook is internal
   const [hasSearched, setHasSearched] = useState(false);
+  // Stryker disable next-line ArrayDeclaration : Initial value is hidden before search and overwritten on success
+  const [missingQuarters, setMissingQuarters] = useState([]);
 
   const objectToAxiosParams = (query) => ({
     url: "/api/public/courseovertime/search",
@@ -20,8 +23,9 @@ export default function CourseOverTimeIndexPage() {
     },
   });
 
-  const onSuccess = (courses) => {
-    setCourseJSON(courses);
+  const onSuccess = (response) => {
+    setCourseJSON(response.courses);
+    setMissingQuarters(response.missingQuarters);
     setHasSearched(true);
   };
 
@@ -44,11 +48,21 @@ export default function CourseOverTimeIndexPage() {
         {mutation.isLoading && (
           <div className="text-center">Loading courses...</div>
         )}
-        {!mutation.isLoading && hasSearched && courseJSON.length === 0 && (
-          <div className="text-center mt-3">
-            <p>No courses were found with the specified criteria.</p>
+        {!mutation.isLoading && hasSearched && missingQuarters.length > 0 && (
+          <div className="alert alert-warning mt-3" role="alert">
+            Data for the selected subject is not yet available for these
+            quarters: {missingQuarters.map(yyyyqToQyy).join(", ")}. Please check
+            back in a few minutes.
           </div>
         )}
+        {!mutation.isLoading &&
+          hasSearched &&
+          courseJSON.length === 0 &&
+          missingQuarters.length === 0 && (
+            <div className="text-center mt-3">
+              <p>No courses were found with the specified criteria.</p>
+            </div>
+          )}
         {!mutation.isLoading && courseJSON.length > 0 && (
           <SectionsTable sections={courseJSON} schedules={[]} showSession />
         )}

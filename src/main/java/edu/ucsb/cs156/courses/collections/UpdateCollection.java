@@ -13,6 +13,8 @@ public interface UpdateCollection extends PagingAndSortingRepository<Update, Obj
 
   Page<Update> findBySubjectAreaAndQuarter(String subjectArea, String quarter, Pageable pageable);
 
+  boolean existsBySubjectAreaAndQuarterAndCompleteTrue(String subjectArea, String quarter);
+
   Page<Update> findByQuarter(String quarter, Pageable pageable);
 
   Page<Update> findBySubjectArea(String subjectArea, Pageable pageable);
