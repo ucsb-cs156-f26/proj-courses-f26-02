@@ -54,7 +54,7 @@ export default function SectionSearchesIndexPageNotLoggedIn() {
 
         {/* Results table */}
         {!mutation.isLoading && sectionJSON.length > 0 && (
-          <SectionsTable sections={sectionJSON} schedules={[]} />
+          <SectionsTable sections={sectionJSON} schedules={[]} showSession />
         )}
       </div>
     </BasicLayout>

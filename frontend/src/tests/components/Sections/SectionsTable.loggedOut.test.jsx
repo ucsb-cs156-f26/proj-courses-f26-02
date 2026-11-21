@@ -149,4 +149,44 @@ describe("SectionsTable.loggedOut tests", () => {
       screen.getByTestId(`${testId}-cell-row-0-col-session`),
     ).toHaveTextContent("");
   });
+  test("session column shows correct values for expanded summer discussions", async () => {
+    const summerPrimary = [
+      {
+        ...primaryFixtures.f24_math_lowerDiv[0],
+        quarter: "20243",
+        primary: {
+          ...primaryFixtures.f24_math_lowerDiv[0].primary,
+          session: "00000A",
+        },
+        subRows: [
+          {
+            ...primaryFixtures.f24_math_lowerDiv[0].subRows[0],
+            session: "00000B",
+          },
+        ],
+      },
+    ];
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <SectionsTable sections={summerPrimary} showSession />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId(`${testId}-cell-row-0-col-session`),
+      ).toHaveTextContent("A");
+    });
+
+    fireEvent.click(screen.getByTestId(`${testId}-expand-all-rows`));
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId(`${testId}-cell-row-0.0-col-session`),
+      ).toHaveTextContent("B");
+    });
+  });
 });
