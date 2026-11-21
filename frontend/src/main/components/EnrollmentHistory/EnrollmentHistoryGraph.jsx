@@ -7,6 +7,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
+  ReferenceLine,
 } from "recharts";
 import {
   createEnrollmentHistoryChartData,
@@ -19,6 +20,7 @@ const EnrollmentHistoryGraph = ({
   data = [],
   lineColors = defaultLineColors,
   title = "Enrollment History",
+  lectureCapacity,
 }) => {
   // Group a copy by day for display, preserving the timestamps in the source data.
   // Sort first so the latest snapshot wins when a section appears twice in a day.
@@ -30,10 +32,11 @@ const EnrollmentHistoryGraph = ({
     }));
   const { chartData, series } =
     createEnrollmentHistoryChartData(dailyDisplayData);
+  const showCapacity = Number.isFinite(lectureCapacity) && chartData.length > 0;
 
   return (
     <div data-testid="enrollment-history-graph">
-      <h3>{title}</h3>
+      <h3 className="h5">{title}</h3>
       <ResponsiveContainer width="100%" height={300}>
         <LineChart
           data={chartData}
@@ -46,7 +49,10 @@ const EnrollmentHistoryGraph = ({
           }}
         >
           <XAxis dataKey="dateCreated" tickFormatter={formatDateCreated} />
-          <YAxis allowDecimals={false} />
+          <YAxis
+            allowDecimals={false}
+            padding={showCapacity ? { top: 24 } : undefined}
+          />
           <Legend />
           <Tooltip
             formatter={formatEnrollmentTooltip}
@@ -68,6 +74,19 @@ const EnrollmentHistoryGraph = ({
               // Stryker restore all
             />
           ))}
+          {showCapacity && (
+            <ReferenceLine
+              y={lectureCapacity}
+              stroke="#808080"
+              strokeWidth={2}
+              ifOverflow="extendDomain"
+              label={{
+                value: `Lecture capacity: ${lectureCapacity}`,
+                position: "insideBottomRight",
+                fill: "#595959",
+              }}
+            />
+          )}
         </LineChart>
       </ResponsiveContainer>
     </div>

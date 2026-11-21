@@ -1,6 +1,6 @@
 import { vi } from "vitest";
 import * as systemInfoModule from "main/utils/systemInfo";
-import { act, render, screen, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { MemoryRouter } from "react-router-dom";
 import axios from "axios";
@@ -12,6 +12,18 @@ import { systemInfoFixtures } from "fixtures/systemInfoFixtures";
 import { ucsbSubjectsFixtures } from "fixtures/ucsbSubjectsFixtures";
 
 import userEvent from "@testing-library/user-event";
+
+vi.mock("recharts", async (importOriginal) => {
+  const original = await importOriginal();
+  return {
+    ...original,
+    ResponsiveContainer: ({ height, children }) => (
+      <original.ResponsiveContainer width={800} height={height}>
+        {children}
+      </original.ResponsiveContainer>
+    ),
+  };
+});
 
 const mockToast = vi.fn();
 vi.mock("react-toastify", async () => {
@@ -28,6 +40,7 @@ describe("EnrollmentHistoryIndexPage tests", () => {
   let queryClient;
 
   beforeEach(() => {
+    mockToast.mockClear();
     queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
@@ -42,6 +55,7 @@ describe("EnrollmentHistoryIndexPage tests", () => {
     axiosMock
       .onGet("/api/UCSBSubjects/all")
       .reply(200, ucsbSubjectsFixtures.threeSubjects);
+    axiosMock.onGet("/api/public/courseovertime/search").reply(200, []);
   });
 
   afterEach(() => {
@@ -215,8 +229,11 @@ describe("EnrollmentHistoryIndexPage tests", () => {
       ),
     ).toBeInTheDocument();
     expect(
-      screen.queryByLabelText("Enrollment history search results"),
+      screen.queryByTestId("enrollment-history-graph"),
     ).not.toBeInTheDocument();
+    expect(axiosMock.history.get.map(({ url }) => url)).not.toContain(
+      "/api/public/courseovertime/search",
+    );
   });
 
   test("displays an error message when search fails", async () => {
@@ -237,11 +254,113 @@ describe("EnrollmentHistoryIndexPage tests", () => {
       ),
     ).toBeInTheDocument();
     expect(
-      screen.queryByLabelText("Enrollment history search results"),
+      screen.queryByTestId("enrollment-history-graph"),
     ).not.toBeInTheDocument();
   });
 
-  test("calls enrollment search api correctly and displays the response", async () => {
+  test.each([
+    ["empty", 200],
+    ["failed", 500],
+  ])(
+    "keeps the enrollment graph visible while instructor lookup is pending and after an %s result",
+    async (_result, status) => {
+      const courseHistoryUrl = "/api/public/courseovertime/search";
+      let resolveCourseHistory;
+      axiosMock.onGet(courseHistoryUrl).reply(
+        () =>
+          new Promise((resolve) => {
+            resolveCourseHistory = resolve;
+          }),
+      );
+      axiosMock.onGet("/api/enrollment/search").reply(200, [
+        {
+          yyyyq: "20262",
+          courseId: "GEOG 16",
+          enrollCd: "07609",
+          section: "0100",
+          enrollment: 32,
+          dateCreated: "2026-04-06",
+        },
+      ]);
+      render(
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter>
+            <EnrollmentHistoryIndexPage />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+
+      await screen.findByRole("option", { name: "GEOG - Geography" });
+      await userEvent.type(screen.getByLabelText("Course Number"), "16");
+      await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+      const graph = await screen.findByTestId("enrollment-history-graph");
+      await waitFor(() => expect(resolveCourseHistory).toBeDefined());
+      expect(queryClient.isFetching([courseHistoryUrl])).toBe(1);
+      expect(
+        within(graph).getByRole("heading", { name: "SPRING 2026" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText("Loading enrollment history..."),
+      ).not.toBeInTheDocument();
+
+      await act(async () => {
+        resolveCourseHistory([status, []]);
+      });
+      await waitFor(() =>
+        expect(queryClient.isFetching([courseHistoryUrl])).toBe(0),
+      );
+      expect(
+        within(graph).getByRole("heading", { name: "SPRING 2026" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText(/No matching enrollment history/),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByText(/Unable to load enrollment history/),
+      ).not.toBeInTheDocument();
+      if (status === 500) {
+        expect(mockToast).toHaveBeenCalledWith(
+          expect.stringContaining(courseHistoryUrl),
+        );
+      } else {
+        expect(mockToast).not.toHaveBeenCalled();
+      }
+    },
+  );
+
+  test("graphs each lecture and its discussion sections with the lecture instructor", async () => {
+    axiosMock.onGet("/api/public/courseovertime/search").reply(200, [
+      {
+        quarter: "20262",
+        courseId: "GEOG 16A ",
+        primary: {
+          section: "0100",
+          instructors: [{ instructor: "LEE A" }],
+          maxEnroll: 120,
+        },
+      },
+      {
+        quarter: "20262",
+        courseId: "GEOG 16A",
+        primary: {
+          section: "0200",
+          instructors: [{ instructor: "PATEL B" }],
+          maxEnroll: 80,
+        },
+      },
+      {
+        quarter: "20262",
+        courseId: "GEOG 16A",
+        primary: {
+          section: "0101",
+          instructors: [{ instructor: "DISCUSSION TA" }],
+          maxEnroll: 25,
+        },
+      },
+      { quarter: "20262", courseId: "GEOG 16A", primary: null },
+      { quarter: "20262", courseId: "GEOG 16A", primary: {} },
+    ]);
     axiosMock.onGet("/api/enrollment/search").reply(200, [
       {
         id: 1,
@@ -251,6 +370,33 @@ describe("EnrollmentHistoryIndexPage tests", () => {
         section: "0100",
         enrollment: 32,
         dateCreated: "2026-04-06",
+      },
+      {
+        id: 2,
+        yyyyq: "20261",
+        courseId: "GEOG 16A",
+        enrollCd: "07608",
+        section: "0100",
+        enrollment: 28,
+        dateCreated: "2026-01-05",
+      },
+      {
+        id: 3,
+        yyyyq: "20262",
+        courseId: "GEOG 16A",
+        enrollCd: "07610",
+        section: "0101",
+        enrollment: 35,
+        dateCreated: "2026-04-07",
+      },
+      {
+        id: 4,
+        yyyyq: "20262",
+        courseId: "GEOG 16A",
+        enrollCd: "07611",
+        section: "0200",
+        enrollment: 20,
+        dateCreated: "2026-04-07",
       },
     ]);
     render(
@@ -270,26 +416,50 @@ describe("EnrollmentHistoryIndexPage tests", () => {
     );
     await userEvent.type(screen.getByLabelText("Course Number"), " 16a ");
     await userEvent.click(screen.getByRole("button", { name: "Submit" }));
-    const response = await screen.findByLabelText(
-      "Enrollment history search results",
-    );
+    const graphs = await screen.findAllByTestId("enrollment-history-graph");
+    expect(graphs).toHaveLength(3);
+    expect(
+      within(graphs[0]).getByRole("heading", {
+        name: "WINTER 2026",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      await within(graphs[1]).findByRole("heading", {
+        name: "SPRING 2026 - LEE A",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(graphs[2]).getByRole("heading", {
+        name: "SPRING 2026 - PATEL B",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(graphs[0]).queryByText(/Lecture capacity/),
+    ).not.toBeInTheDocument();
+    expect(
+      await within(graphs[1]).findByText("Lecture capacity: 120"),
+    ).toBeInTheDocument();
+    expect(
+      await within(graphs[2]).findByText("Lecture capacity: 80"),
+    ).toBeInTheDocument();
+    expect(
+      within(graphs[1]).getByText("07609 - Section 0100"),
+    ).toBeInTheDocument();
+    expect(
+      within(graphs[1]).getByText("07610 - Section 0101"),
+    ).toBeInTheDocument();
+    expect(
+      within(graphs[1]).queryByText("07611 - Section 0200"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(graphs[2]).getByText("07611 - Section 0200"),
+    ).toBeInTheDocument();
     expect(
       screen.queryByText(/No matching enrollment history/),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByText("Loading enrollment history..."),
     ).not.toBeInTheDocument();
-    expect(JSON.parse(response.textContent)).toEqual([
-      {
-        id: 1,
-        yyyyq: "20262",
-        courseId: "GEOG 16A",
-        enrollCd: "07609",
-        section: "0100",
-        enrollment: 32,
-        dateCreated: "2026-04-06",
-      },
-    ]);
     expect(
       axiosMock.history.get.find(({ url }) => url === "/api/enrollment/search")
         .params,
@@ -319,14 +489,26 @@ describe("EnrollmentHistoryIndexPage tests", () => {
       screen.queryByText(/No matching enrollment history/),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByLabelText("Enrollment history search results"),
+      screen.queryByTestId("enrollment-history-graph"),
     ).not.toBeInTheDocument();
     expect(
       axiosMock.history.get.some(({ url }) => url === "/api/enrollment/search"),
     ).toBe(false);
   });
 
-  test.each([[[]], [[{ id: 1, enrollment: 32 }]]])(
+  test.each([
+    [[]],
+    [
+      [
+        {
+          yyyyq: "20262",
+          section: "0100",
+          enrollment: 32,
+          dateCreated: "2026-04-06",
+        },
+      ],
+    ],
+  ])(
     "shows loading feedback until the response arrives: %j",
     async (results) => {
       let resolveSearch;
@@ -357,7 +539,7 @@ describe("EnrollmentHistoryIndexPage tests", () => {
         screen.queryByText(/No matching enrollment history/),
       ).not.toBeInTheDocument();
       expect(
-        screen.queryByLabelText("Enrollment history search results"),
+        screen.queryByTestId("enrollment-history-graph"),
       ).not.toBeInTheDocument();
       await act(async () => {
         resolveSearch([200, results]);
@@ -368,7 +550,7 @@ describe("EnrollmentHistoryIndexPage tests", () => {
         ).toBeInTheDocument();
       } else {
         expect(
-          await screen.findByLabelText("Enrollment history search results"),
+          await screen.findByTestId("enrollment-history-graph"),
         ).toBeInTheDocument();
         expect(
           screen.queryByText(/No matching enrollment history/),

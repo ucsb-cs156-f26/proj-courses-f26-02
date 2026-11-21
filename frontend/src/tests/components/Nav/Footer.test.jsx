@@ -140,4 +140,34 @@ describe("Footer tests", () => {
       screen.queryByTestId("footer-feedback-modal-link"),
     ).not.toBeInTheDocument();
   });
+
+  test("Feedback modal closes when the header close button is clicked", () => {
+    const systemInfo = systemInfoFixtures.withFeedbackUrl;
+
+    render(<Footer systemInfo={systemInfo} />);
+
+    fireEvent.click(screen.getByTestId("footer-feedback-button"));
+    expect(screen.getByTestId("footer-feedback-modal-link")).toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(
+      screen.queryByTestId("footer-feedback-modal-link"),
+    ).not.toBeInTheDocument();
+  });
+
+  test("Feedback modal closes when Open Feedback Form is clicked", () => {
+    const systemInfo = systemInfoFixtures.withFeedbackUrl;
+
+    render(<Footer systemInfo={systemInfo} />);
+
+    fireEvent.click(screen.getByTestId("footer-feedback-button"));
+    expect(screen.getByTestId("footer-feedback-modal-link")).toBeVisible();
+
+    fireEvent.click(screen.getByTestId("footer-feedback-modal-link"));
+
+    expect(
+      screen.queryByTestId("footer-feedback-modal-link"),
+    ).not.toBeInTheDocument();
+  });
 });

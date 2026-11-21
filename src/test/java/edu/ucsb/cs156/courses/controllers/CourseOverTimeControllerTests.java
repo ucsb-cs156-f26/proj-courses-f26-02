@@ -3,6 +3,7 @@ package edu.ucsb.cs156.courses.controllers;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -15,6 +16,7 @@ import edu.ucsb.cs156.courses.documents.CourseInfo;
 import edu.ucsb.cs156.courses.documents.Primary;
 import edu.ucsb.cs156.courses.documents.Section;
 import edu.ucsb.cs156.courses.repositories.UserRepository;
+import edu.ucsb.cs156.courses.services.UpdateService;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -33,6 +35,7 @@ public class CourseOverTimeControllerTests extends ControllerTestCase {
 
   @MockitoBean ConvertedSectionCollection convertedSectionCollection;
   @MockitoBean UserRepository userRepository;
+  @MockitoBean UpdateService updateService;
 
   @Test
   public void test_search_emptyRequest() throws Exception {
@@ -47,6 +50,7 @@ public class CourseOverTimeControllerTests extends ControllerTestCase {
     when(convertedSectionCollection.findByQuarterRangeAndCourseId(
             any(String.class), any(String.class), any(String.class)))
         .thenReturn(databaseResult);
+    when(updateService.hasCompleteUpdate(eq("CMPSC"), any(String.class))).thenReturn(true);
 
     // act
     MvcResult response =
@@ -59,7 +63,8 @@ public class CourseOverTimeControllerTests extends ControllerTestCase {
     String responseString = response.getResponse().getContentAsString();
     String expectedString = mapper.writeValueAsString(expectedResult);
 
-    assertEquals(expectedString, responseString);
+    assertEquals(mapper.readTree(expectedString), mapper.readTree(responseString).get("courses"));
+    assertEquals(mapper.readTree("[]"), mapper.readTree(responseString).get("missingQuarters"));
   }
 
   @Test
@@ -103,6 +108,7 @@ public class CourseOverTimeControllerTests extends ControllerTestCase {
     when(convertedSectionCollection.findByQuarterRangeAndCourseId(
             any(String.class), any(String.class), eq("CMPSC    24")))
         .thenReturn(databaseResult);
+    when(updateService.hasCompleteUpdate(eq("CMPSC"), any(String.class))).thenReturn(true);
 
     // act
     MvcResult response = mockMvc.perform(get(url)).andExpect(status().isOk()).andReturn();
@@ -110,7 +116,8 @@ public class CourseOverTimeControllerTests extends ControllerTestCase {
     // assert
     String expectedString = mapper.writeValueAsString(expectedPrimaries);
     String responseString = response.getResponse().getContentAsString();
-    assertEquals(expectedString, responseString);
+    assertEquals(mapper.readTree(expectedString), mapper.readTree(responseString).get("courses"));
+    assertEquals(mapper.readTree("[]"), mapper.readTree(responseString).get("missingQuarters"));
   }
 
   @Test
@@ -165,6 +172,7 @@ public class CourseOverTimeControllerTests extends ControllerTestCase {
     when(convertedSectionCollection.findByQuarterRangeAndCourseId(
             any(String.class), any(String.class), eq("CMPSC   130A ")))
         .thenReturn(databaseResultOutOfOrder);
+    when(updateService.hasCompleteUpdate(eq("CMPSC"), any(String.class))).thenReturn(true);
 
     // act
     MvcResult response = mockMvc.perform(get(url)).andExpect(status().isOk()).andReturn();
@@ -172,6 +180,102 @@ public class CourseOverTimeControllerTests extends ControllerTestCase {
     // assert
     String expectedString = mapper.writeValueAsString(expectedPrimariesInOrder);
     String responseString = response.getResponse().getContentAsString();
-    assertEquals(expectedString, responseString);
+    assertEquals(mapper.readTree(expectedString), mapper.readTree(responseString).get("courses"));
+    assertEquals(mapper.readTree("[]"), mapper.readTree(responseString).get("missingQuarters"));
+  }
+
+  @Test
+  public void test_search_missingQuartersWithNoCourses() throws Exception {
+    List<ConvertedSection> databaseResult = new ArrayList<ConvertedSection>();
+    List<Primary> expectedResult = new ArrayList<Primary>();
+    List<String> expectedMissingQuarters = Arrays.asList("20214", "20222");
+
+    String urlTemplate =
+        "/api/public/courseovertime/search?startQtr=%s&endQtr=%s&subjectArea=%s&courseNumber=%s";
+
+    String url = String.format(urlTemplate, "20214", "20222", "CMPSC", "24");
+
+    // mock
+    when(convertedSectionCollection.findByQuarterRangeAndCourseId("20214", "20222", "CMPSC    24"))
+        .thenReturn(databaseResult);
+
+    when(updateService.hasCompleteUpdate("CMPSC", "20214")).thenReturn(false);
+    when(updateService.hasCompleteUpdate("CMPSC", "20221")).thenReturn(true);
+    when(updateService.hasCompleteUpdate("CMPSC", "20222")).thenReturn(false);
+
+    // act
+    MvcResult response = mockMvc.perform(get(url)).andExpect(status().isOk()).andReturn();
+
+    // assert
+    String responseString = response.getResponse().getContentAsString();
+    String expectedString = mapper.writeValueAsString(expectedResult);
+    String expectedMissingString = mapper.writeValueAsString(expectedMissingQuarters);
+
+    assertEquals(mapper.readTree(expectedString), mapper.readTree(responseString).get("courses"));
+    assertEquals(
+        mapper.readTree(expectedMissingString),
+        mapper.readTree(responseString).get("missingQuarters"));
+
+    verify(updateService).hasCompleteUpdate("CMPSC", "20214");
+    verify(updateService).hasCompleteUpdate("CMPSC", "20221");
+    verify(updateService).hasCompleteUpdate("CMPSC", "20222");
+  }
+
+  @Test
+  public void test_search_missingQuartersPreservesCourses() throws Exception {
+    CourseInfo info =
+        CourseInfo.builder()
+            .quarter("20222")
+            .courseId("CMPSC   24 -1")
+            .title("OBJ ORIENTED DESIGN")
+            .description("Intro to object oriented design")
+            .build();
+
+    Section section1 = Section.builder().enrollCode("07500").section("0100").build();
+    Section section2 = Section.builder().enrollCode("07501").section("0101").build();
+
+    ConvertedSection cs1 = ConvertedSection.builder().courseInfo(info).section(section1).build();
+    ConvertedSection cs2 = ConvertedSection.builder().courseInfo(info).section(section2).build();
+
+    String urlTemplate =
+        "/api/public/courseovertime/search?startQtr=%s&endQtr=%s&subjectArea=%s&courseNumber=%s";
+
+    String url = String.format(urlTemplate, "20221", "20222", "CMPSC", "24");
+
+    List<ConvertedSection> databaseResult = new ArrayList<ConvertedSection>();
+    databaseResult.addAll(Arrays.asList(cs2, cs1));
+
+    List<Primary> expectedPrimaries =
+        Arrays.asList(
+            Primary.builder()
+                .quarter("20222")
+                .courseId("CMPSC   24 -1")
+                .title("OBJ ORIENTED DESIGN")
+                .description("Intro to object oriented design")
+                .primary(section1)
+                .subRows(Arrays.asList(section2))
+                .build());
+
+    // mock
+    when(convertedSectionCollection.findByQuarterRangeAndCourseId("20221", "20222", "CMPSC    24"))
+        .thenReturn(databaseResult);
+    when(updateService.hasCompleteUpdate("CMPSC", "20221")).thenReturn(false);
+    when(updateService.hasCompleteUpdate("CMPSC", "20222")).thenReturn(true);
+
+    // act
+    MvcResult response = mockMvc.perform(get(url)).andExpect(status().isOk()).andReturn();
+
+    // assert
+    String responseString = response.getResponse().getContentAsString();
+    String expectedString = mapper.writeValueAsString(expectedPrimaries);
+    String expectedMissingString = mapper.writeValueAsString(Arrays.asList("20221"));
+
+    assertEquals(mapper.readTree(expectedString), mapper.readTree(responseString).get("courses"));
+    assertEquals(
+        mapper.readTree(expectedMissingString),
+        mapper.readTree(responseString).get("missingQuarters"));
+
+    verify(updateService).hasCompleteUpdate("CMPSC", "20221");
+    verify(updateService).hasCompleteUpdate("CMPSC", "20222");
   }
 }
