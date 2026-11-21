@@ -87,42 +87,46 @@ public class UpdateCourseDataJob implements JobContextConsumer {
 <span class="fc" id="L87">    boolean isInRegistrationPass = ucsbapiQuarterService.isQuarterInRegistrationPass(quarterYYYYQ);</span>
 
 <span class="fc bfc" id="L89" title="All 2 branches covered.">    for (ConvertedSection section : convertedSections) {</span>
-      // No branch of this loop ever calls ctx.log() -- all logging happens once, after the loop,
-      // in the summary line below. Without its own checkpoint, this loop has zero opportunities
-      // to notice a cancellation request no matter how many sections it processes.
-<span class="fc" id="L93">      ctx.checkCancellation();</span>
+<span class="fc" id="L90">      ctx.checkCancellation();</span>
+<span class="fc" id="L91">      String enrollCode = &quot;unknown&quot;;</span>
       try {
-<span class="fc" id="L95">        String quarter = section.getCourseInfo().getQuarter();</span>
-<span class="fc" id="L96">        String enrollCode = section.getSection().getEnrollCode();</span>
-<span class="fc" id="L97">        Optional&lt;ConvertedSection&gt; optionalSection =</span>
-<span class="fc" id="L98">            convertedSectionCollection.findOneByQuarterAndEnrollCode(quarter, enrollCode);</span>
-<span class="fc bfc" id="L99" title="All 2 branches covered.">        if (optionalSection.isPresent()) {</span>
-<span class="fc" id="L100">          ConvertedSection existingSection = optionalSection.get();</span>
-<span class="fc" id="L101">          existingSection.setCourseInfo(section.getCourseInfo());</span>
-<span class="fc" id="L102">          existingSection.setSection(section.getSection());</span>
-<span class="fc" id="L103">          convertedSectionCollection.save(existingSection);</span>
-<span class="fc" id="L104">          updatedSections++;</span>
-<span class="fc" id="L105">        } else {</span>
-<span class="fc" id="L106">          convertedSectionCollection.save(section);</span>
-<span class="fc" id="L107">          newSections++;</span>
+<span class="fc" id="L93">        enrollCode = section.getSection().getEnrollCode();</span>
+<span class="fc" id="L94">        String quarter = section.getCourseInfo().getQuarter();</span>
+<span class="fc" id="L95">        Optional&lt;ConvertedSection&gt; optionalSection =</span>
+<span class="fc" id="L96">            convertedSectionCollection.findOneByQuarterAndEnrollCode(quarter, enrollCode);</span>
+<span class="fc bfc" id="L97" title="All 2 branches covered.">        if (optionalSection.isPresent()) {</span>
+<span class="fc" id="L98">          ConvertedSection existingSection = optionalSection.get();</span>
+<span class="fc" id="L99">          existingSection.setCourseInfo(section.getCourseInfo());</span>
+<span class="fc" id="L100">          existingSection.setSection(section.getSection());</span>
+<span class="fc" id="L101">          convertedSectionCollection.save(existingSection);</span>
+<span class="fc" id="L102">          updatedSections++;</span>
+<span class="fc" id="L103">        } else {</span>
+<span class="fc" id="L104">          convertedSectionCollection.save(section);</span>
+<span class="fc" id="L105">          newSections++;</span>
         }
-<span class="fc bfc" id="L109" title="All 2 branches covered.">        if (isInRegistrationPass) {</span>
-<span class="fc" id="L110">          enrollmentDataPointRepository.save(section.getEnrollmentDataPoint());</span>
+<span class="fc bfc" id="L107" title="All 4 branches covered.">        if (isInRegistrationPass &amp;&amp; section.getSection().getEnrolledTotal() != null) {</span>
+<span class="fc" id="L108">          enrollmentDataPointRepository.save(section.getEnrollmentDataPoint());</span>
         }
-<span class="fc" id="L112">      } catch (Exception e) {</span>
-<span class="fc" id="L113">        errors++;</span>
-<span class="fc" id="L114">      }</span>
-<span class="fc" id="L115">    }</span>
+<span class="fc" id="L110">      } catch (Exception e) {</span>
+<span class="fc" id="L111">        errors++;</span>
+<span class="fc" id="L112">        String message =</span>
+<span class="fc" id="L113">            String.format(</span>
+                &quot;Failed updating subject=%s quarter=%s enrollCode=%s: %s&quot;,
+                subjectArea, quarterYYYYQ, enrollCode, e);
+<span class="fc" id="L116">        ctx.log(message);</span>
+<span class="fc" id="L117">        log.error(message, e);</span>
+<span class="fc" id="L118">      }</span>
+<span class="fc" id="L119">    }</span>
 
-<span class="fc" id="L117">    Update savedUpdate =</span>
-<span class="fc" id="L118">        updateUpdatesCollection(quarterYYYYQ, subjectArea, newSections, updatedSections, errors);</span>
+<span class="fc" id="L121">    Update savedUpdate =</span>
+<span class="fc" id="L122">        updateUpdatesCollection(quarterYYYYQ, subjectArea, newSections, updatedSections, errors);</span>
 
-<span class="fc" id="L120">    ctx.log(</span>
-<span class="fc" id="L121">        String.format(</span>
+<span class="fc" id="L124">    ctx.log(</span>
+<span class="fc" id="L125">        String.format(</span>
             &quot;%d new sections saved, %d sections updated, %d errors, last update: %s&quot;,
-<span class="fc" id="L123">            newSections, updatedSections, errors, savedUpdate.getLastUpdate()));</span>
+<span class="fc" id="L127">            newSections, updatedSections, errors, savedUpdate.getLastUpdate()));</span>
 
-<span class="fc" id="L125">    ctx.log(&quot;Saved update: &quot; + savedUpdate);</span>
-<span class="fc" id="L126">  }</span>
+<span class="fc" id="L129">    ctx.log(&quot;Saved update: &quot; + savedUpdate);</span>
+<span class="fc" id="L130">  }</span>
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.15.202606040825</span></div></body></html>
