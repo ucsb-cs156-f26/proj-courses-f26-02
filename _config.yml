@@ -23,4 +23,4 @@ repo_name: "TBD"
 repo: ucsb-cs156-f26/proj-courses-f26-02
 owner: ucsb-cs156-f26
 repo_name: proj-courses-f26-02
-pull_requests: [{"author":{"id":"U_kgDODESaiw","is_bot":false,"login":"matthewvnguyen110","name":"Matthew Nguyen"},"headRefName":"mn-add-session-main-course-search","number":46,"title":"Add session column to main course search (#45)","url":"https://github.com/ucsb-cs156-f26/proj-courses-f26-02/pull/46"},{"author":{"id":"U_kgDOCe8YoQ","is_bot":false,"login":"Ooiuut","name":""},"headRefName":"wh/course-over-time-missing-data","number":41,"title":"feat: warn when Course Over Time data is incomplete","url":"https://github.com/ucsb-cs156-f26/proj-courses-f26-02/pull/41"}]
+pull_requests: [{"author":{"id":"U_kgDODESaiw","is_bot":false,"login":"matthewvnguyen110","name":"Matthew Nguyen"},"headRefName":"mn-add-session-main-course-search","number":46,"title":"Add session column to main course search (#45)","url":"https://github.com/ucsb-cs156-f26/proj-courses-f26-02/pull/46"}]
