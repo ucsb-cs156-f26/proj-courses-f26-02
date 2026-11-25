@@ -580,4 +580,34 @@ public class UpdateCourseDataJobTests {
 
     verify(convertedSectionCollection, never()).findOneByQuarterAndEnrollCode(any(), any());
   }
+
+  @Test
+  void getter_tests() {
+    var jobTest =
+        UpdateCourseDataJob.builder()
+            .start_quarterYYYYQ("20211")
+            .end_quarterYYYYQ("20211")
+            .subjects(List.of("CMPSC"))
+            .ucsbCurriculumService(ucsbCurriculumService)
+            .convertedSectionCollection(convertedSectionCollection)
+            .updateCollection(updateCollection)
+            .isStaleService(isStaleService)
+            .ifStale(false)
+            .enrollmentDataPointRepository(enrollmentDataPointRepository)
+            .ucsbapiQuarterService(ucsbapiQuarterService)
+            .jobRateLimit(jobRateLimit)
+            .build();
+
+    assertEquals("20211", jobTest.getStart_quarterYYYYQ());
+    assertEquals("20211", jobTest.getEnd_quarterYYYYQ());
+    assertEquals(List.of("CMPSC"), jobTest.getSubjects());
+    assertEquals(ucsbCurriculumService, jobTest.getUcsbCurriculumService());
+    assertEquals(convertedSectionCollection, jobTest.getConvertedSectionCollection());
+    assertEquals(updateCollection, jobTest.getUpdateCollection());
+    assertEquals(isStaleService, jobTest.getIsStaleService());
+    assertEquals(false, jobTest.isIfStale());
+    assertEquals(enrollmentDataPointRepository, jobTest.getEnrollmentDataPointRepository());
+    assertEquals(ucsbapiQuarterService, jobTest.getUcsbapiQuarterService());
+    assertEquals(jobRateLimit, jobTest.getJobRateLimit());
+  }
 }
