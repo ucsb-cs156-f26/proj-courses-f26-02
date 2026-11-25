@@ -49,10 +49,7 @@ export default function CourseDetailsTable({ details }) {
           const result =
             cell.row.original.classSections[0].timeLocations[0].days;
           return result;
-        } catch {
-          // Stryker disable next-line BlockStatement : equivalent mutation of "do nothing" and return ""
-          return "";
-        }
+        } catch {}
       },
       id: "days",
     },
