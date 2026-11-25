@@ -54,6 +54,25 @@ describe("utils/systemInfo tests", () => {
       await waitFor(() => result.current.isFetched);
     });
 
+    test("useSystemInfo caches results for 24 hours", async () => {
+      const wrapper = ({ children }) => (
+        <QueryClientProvider client={queryClient}>
+          {children}
+        </QueryClientProvider>
+      );
+      axiosMock
+        .onGet("/api/systemInfo")
+        .reply(200, systemInfoFixtures.showingBoth);
+
+      const { result } = renderHook(() => useSystemInfo(), { wrapper });
+
+      expect(queryClient.getQueryCache().find("systemInfo").cacheTime).toBe(
+        24 * 60 * 60 * 1000,
+      );
+
+      await waitFor(() => expect(result.current.isFetched).toBe(true));
+    });
+
     test("useSystemInfo retrieves data from API", async () => {
       const wrapper = ({ children }) => (
         <QueryClientProvider client={queryClient}>
