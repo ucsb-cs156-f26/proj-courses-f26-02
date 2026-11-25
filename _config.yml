@@ -23,4 +23,4 @@ repo_name: "TBD"
 repo: ucsb-cs156-f26/proj-courses-f26-02
 owner: ucsb-cs156-f26
 repo_name: proj-courses-f26-02
-pull_requests: [{"author":{"id":"U_kgDOCM7eew","is_bot":false,"login":"ekuchhal","name":"Eshaan Kuchhal"},"headRefName":"ek-course-details-fixes","number":47,"title":"ek - update CourseDetailsTable days catch and currentUser initialData","url":"https://github.com/ucsb-cs156-f26/proj-courses-f26-02/pull/47"}]
+pull_requests: [{"author":{"id":"U_kgDODhAzXg","is_bot":false,"login":"zsjkwon","name":"Zach"},"headRefName":"zk-fix-enrollment-hist","number":48,"title":"fix: handle course history API response in enrollment search","url":"https://github.com/ucsb-cs156-f26/proj-courses-f26-02/pull/48"},{"author":{"id":"U_kgDOCM7eew","is_bot":false,"login":"ekuchhal","name":"Eshaan Kuchhal"},"headRefName":"ek-course-details-fixes","number":47,"title":"ek - update CourseDetailsTable days catch and currentUser initialData","url":"https://github.com/ucsb-cs156-f26/proj-courses-f26-02/pull/47"}]
