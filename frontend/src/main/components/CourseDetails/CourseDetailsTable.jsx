@@ -45,11 +45,15 @@ export default function CourseDetailsTable({ details }) {
     {
       header: "Days",
       cell: ({ cell }) => {
+        // Stryker disable BlockStatement : equivalent mutation; emptying the catch returns undefined, which renders the same as ""
         try {
           const result =
             cell.row.original.classSections[0].timeLocations[0].days;
           return result;
-        } catch {}
+        } catch {
+          return "";
+        }
+        // Stryker restore BlockStatement
       },
       id: "days",
     },

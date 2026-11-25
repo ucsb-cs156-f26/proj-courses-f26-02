@@ -1,6 +1,6 @@
 import { vi } from "vitest";
 import { render, waitFor, fireEvent, screen } from "@testing-library/react";
-import OurTable, { ButtonColumn } from "main/components/OurTable";
+import OurTable, { ButtonColumn, DateColumn } from "main/components/OurTable";
 import ourTableFixtures from "fixtures/ourTableFixtures";
 import { convertOldStyleColumnsToNewStyle } from "main/components/OurTableUtils";
 
@@ -128,6 +128,20 @@ describe("OurTable tests", () => {
       expect(firstNameHeader).toBeInTheDocument();
       expect(firstNameHeader).toHaveTextContent("First Name");
       expect(firstNameHeader).toHaveAttribute("style", "cursor: pointer;");
+    });
+  });
+
+  describe("DateColumn tests", () => {
+    test("formats dates in 24-hour Pacific time", () => {
+      const columns = [DateColumn("When", (cell) => cell.row.original.when)];
+      // 22:05:09 UTC is 3:05:09 PM Pacific (PDT), so 12-hour format would show "3:05:09 PM"
+      const data = [{ when: "2025-06-01T22:05:09Z" }];
+
+      render(<OurTable data={data} columns={columns} testid="dates" />);
+
+      expect(screen.getByTestId("dates-cell-row-0-col-When").textContent).toBe(
+        "6/1/2025, 15:05:09",
+      );
     });
   });
 });

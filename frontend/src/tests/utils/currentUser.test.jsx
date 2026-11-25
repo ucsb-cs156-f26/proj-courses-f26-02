@@ -44,6 +44,14 @@ describe("utils/currentUser tests", () => {
       const { result } = renderHook(() => useCurrentUser(), {
         wrapper,
       });
+
+      // Before the request finishes, the hook should already return the placeholder (initialData)
+      expect(result.current.data).toEqual({
+        loggedIn: false,
+        root: null,
+        initialData: true,
+      });
+
       await waitFor(() => result.current.isSuccess);
 
       expect(result.current.data).toEqual({

@@ -18,7 +18,7 @@ export function useCurrentUser() {
       }
     },
     {
-      initialData: { loggedIn: false, root: null, initialData: false },
+      initialData: { loggedIn: false, root: null, initialData: true },
     },
   );
 }

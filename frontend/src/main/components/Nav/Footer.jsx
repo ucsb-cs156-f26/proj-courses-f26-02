@@ -4,7 +4,7 @@ import { Button, Container, Modal } from "react-bootstrap";
 export const space = " ";
 
 export default function Footer(systemInfo) {
-  const feedbackUrl = systemInfo?.systemInfo?.appFeedbackUrl;
+  const feedbackUrl = systemInfo.systemInfo?.appFeedbackUrl;
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
   return (
@@ -36,7 +36,7 @@ export default function Footer(systemInfo) {
           <a
             data-testid="footer-source-code-link"
             href={
-              systemInfo?.systemInfo?.sourceRepo ||
+              systemInfo.systemInfo?.sourceRepo ||
               "https://github.com/ucsb-cs156/proj-courses"
             }
             target="_blank"
