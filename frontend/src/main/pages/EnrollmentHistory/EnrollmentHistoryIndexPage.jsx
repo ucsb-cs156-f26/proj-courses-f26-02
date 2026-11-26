@@ -55,7 +55,7 @@ export default function EnrollmentHistoryIndexPage() {
     { enabled: search.isSuccess && search.data.length > 0 },
   );
   const metadataByLecture = new Map();
-  courseHistory?.courses?.forEach(({ quarter, courseId, primary }) => {
+  courseHistory?.courses.forEach(({ quarter, courseId, primary }) => {
     if (primary?.section?.endsWith("00")) {
       metadataByLecture.set(lectureKey(quarter, courseId, primary.section), {
         instructors: formatInstructors(primary.instructors),
