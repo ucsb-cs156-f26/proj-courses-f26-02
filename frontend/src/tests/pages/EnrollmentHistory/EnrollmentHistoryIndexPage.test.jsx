@@ -55,7 +55,10 @@ describe("EnrollmentHistoryIndexPage tests", () => {
     axiosMock
       .onGet("/api/UCSBSubjects/all")
       .reply(200, ucsbSubjectsFixtures.threeSubjects);
-    axiosMock.onGet("/api/public/courseovertime/search").reply(200, []);
+    axiosMock.onGet("/api/public/courseovertime/search").reply(200, {
+      courses: [],
+      missingQuarters: [],
+    });
   });
 
   afterEach(() => {
@@ -305,7 +308,7 @@ describe("EnrollmentHistoryIndexPage tests", () => {
       ).not.toBeInTheDocument();
 
       await act(async () => {
-        resolveCourseHistory([status, []]);
+        resolveCourseHistory([status, { courses: [], missingQuarters: [] }]);
       });
       await waitFor(() =>
         expect(queryClient.isFetching([courseHistoryUrl])).toBe(0),
@@ -330,37 +333,40 @@ describe("EnrollmentHistoryIndexPage tests", () => {
   );
 
   test("graphs each lecture and its discussion sections with the lecture instructor", async () => {
-    axiosMock.onGet("/api/public/courseovertime/search").reply(200, [
-      {
-        quarter: "20262",
-        courseId: "GEOG 16A ",
-        primary: {
-          section: "0100",
-          instructors: [{ instructor: "LEE A" }],
-          maxEnroll: 120,
+    axiosMock.onGet("/api/public/courseovertime/search").reply(200, {
+      courses: [
+        {
+          quarter: "20262",
+          courseId: "GEOG 16A ",
+          primary: {
+            section: "0100",
+            instructors: [{ instructor: "LEE A" }],
+            maxEnroll: 120,
+          },
         },
-      },
-      {
-        quarter: "20262",
-        courseId: "GEOG 16A",
-        primary: {
-          section: "0200",
-          instructors: [{ instructor: "PATEL B" }],
-          maxEnroll: 80,
+        {
+          quarter: "20262",
+          courseId: "GEOG 16A",
+          primary: {
+            section: "0200",
+            instructors: [{ instructor: "PATEL B" }],
+            maxEnroll: 80,
+          },
         },
-      },
-      {
-        quarter: "20262",
-        courseId: "GEOG 16A",
-        primary: {
-          section: "0101",
-          instructors: [{ instructor: "DISCUSSION TA" }],
-          maxEnroll: 25,
+        {
+          quarter: "20262",
+          courseId: "GEOG 16A",
+          primary: {
+            section: "0101",
+            instructors: [{ instructor: "DISCUSSION TA" }],
+            maxEnroll: 25,
+          },
         },
-      },
-      { quarter: "20262", courseId: "GEOG 16A", primary: null },
-      { quarter: "20262", courseId: "GEOG 16A", primary: {} },
-    ]);
+        { quarter: "20262", courseId: "GEOG 16A", primary: null },
+        { quarter: "20262", courseId: "GEOG 16A", primary: {} },
+      ],
+      missingQuarters: ["20261"],
+    });
     axiosMock.onGet("/api/enrollment/search").reply(200, [
       {
         id: 1,
